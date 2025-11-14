@@ -64,11 +64,12 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     on_reset: fn(old: int, new: int) {},
     on_element_pressed: fn(index: ElementIndex) {
         log(f"[AP] Pressed {index.element_type} {index.element_index} in cluster {index.cluster_index}");
-        if(index.element_type == "Button"){
-            log(f"APAPAP send location check {10000000 + index.cluster_index} to Archipelago server")
+        if index.element_type == ElementType::Button {
+            log(f"APAPAP send location check {10000000 + index.cluster_index} to Archipelago server");
             // we want to send location check 10000000+index.cluster_index here
             // more info on the protocol: https://github.com/ArchipelagoMW/Archipelago/blob/main/docs/network%20protocol.md#LocationChecks
             // more info on the rs implementation: https://github.com/AshIndigo/archipelago_rs/blob/cec5da562020826a9628c8f7f2d2b8853cc9e3c1/src/client.rs#L238
+            Tas::archipelago_send_check(10000000 + index.cluster_index);
         }
     },
     on_element_released: fn(index: ElementIndex) {},

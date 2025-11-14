@@ -95,6 +95,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(press_button_on_server)
         .add_function(archipelago_connect)
         .add_function(archipelago_disconnect)
+        .add_function(archipelago_send_check)
         .add_function(new_game_pressed)
         .add_function(get_level)
         .add_function(set_level)
@@ -1116,6 +1117,15 @@ fn archipelago_connect(server_and_port: String, game: String, slot: String, pass
 #[rebo::function(raw("Tas::archipelago_disconnect"))]
 fn archipelago_disconnect() {
     STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx.send(ReboToArchipelago::Disconnect).unwrap();
+}
+#[rebo::function(raw("Tas::archipelago_send_check"))]
+fn archipelago_send_check(location_id: i64) {
+    let msg = format!("Archipelago: sending location check for {}", location_id);
+    log!("{}", msg);
+    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
+    STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
+        .send(ReboToArchipelago::LocationChecks { locations: vec![location_id] })
+        .unwrap();
 }
 
 

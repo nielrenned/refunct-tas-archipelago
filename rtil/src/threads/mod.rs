@@ -58,4 +58,5 @@ pub enum ReboToArchipelago {
     },
     ClientMessage(ClientMessage),
     Disconnect,
+    LocationChecks { locations: Vec<i64> },
 }

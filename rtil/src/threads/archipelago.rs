@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::thread;
 use archipelago_rs::client::{ArchipelagoClient, ArchipelagoClientReceiver, ArchipelagoError};
-use archipelago_rs::protocol::ServerMessage;
 use crossbeam_channel::Sender;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::AbortHandle;
@@ -35,6 +34,11 @@ pub fn run(archipelago_rebo_tx: Sender<ArchipelagoToRebo>, mut rebo_archipelago_
                             if let Some(abort_handle) = receiver_abort_handle.take() {
                                 abort_handle.abort();
                             }
+                        }
+                        ReboToArchipelago::LocationChecks { locations    } => {
+                            log!("Sending location checks: {:?}", locations);
+                            sender.as_mut().unwrap()
+                                .location_checks(locations).await?;
                         }
                     }
                 }
