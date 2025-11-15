@@ -239,6 +239,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_required_rebo_function(start_new_game_at)
         .add_required_rebo_function(disconnected)
         .add_required_rebo_function(archipelago_disconnected)
+        .add_required_rebo_function(archipelago_trigger_element)
         .add_required_rebo_function(on_level_state_change)
         .add_required_rebo_function(on_resolution_change)
         .add_required_rebo_function(on_menu_open)
@@ -435,11 +436,17 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
 
                     //loop through received items
                     for net in &received.items {
-                        let id = (net.item as i32) - 10;
+                        let id = net.item as i32;
                         let line = format!("APAPAP Trigger Cluster #{} in-game", id - 10000000);
                         log!("{}", line);
                         STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(line)).unwrap();
                         // we want to trigger cluster id-10000000 in-game here
+                        if id >= 10000000 {
+                            archipelago_trigger_element(vm,
+                                (id - 10000000) as usize,
+                                0 as usize
+                            )?;
+                        }
                     }
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::LocationInfo(info))) => {
@@ -524,6 +531,7 @@ extern "rebo" {
     fn on_level_state_change(old: LevelState, new: LevelState);
     fn on_resolution_change();
     fn on_menu_open();
+    fn archipelago_trigger_element(cluster_index: usize, element_index: usize);
 }
 
 fn config_path() -> PathBuf {

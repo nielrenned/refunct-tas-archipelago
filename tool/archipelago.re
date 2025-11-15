@@ -65,7 +65,7 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     on_element_pressed: fn(index: ElementIndex) {
         log(f"[AP] Pressed {index.element_type} {index.element_index} in cluster {index.cluster_index}");
         if index.element_type == ElementType::Button {
-            log(f"APAPAP send location check {10000000 + index.cluster_index} to Archipelago server");
+            // log(f"APAPAP send location check {10000000 + index.cluster_index} to Archipelago server");
             // we want to send location check 10000000+index.cluster_index here
             // more info on the protocol: https://github.com/ArchipelagoMW/Archipelago/blob/main/docs/network%20protocol.md#LocationChecks
             // more info on the rs implementation: https://github.com/AshIndigo/archipelago_rs/blob/cec5da562020826a9628c8f7f2d2b8853cc9e3c1/src/client.rs#L238
@@ -86,4 +86,9 @@ static mut ARCHIPELAGO_COMPONENT = Component {
 
 fn archipelago_disconnected() {
     remove_component(ARCHIPELAGO_COMPONENT);
+}
+
+fn archipelago_trigger_element(clusterindex: int, elementindex: int){
+    Tas::set_level(clusterindex);
+    Tas::trigger_element(ElementIndex { cluster_index: clusterindex, element_type: ElementType::Button, element_index: elementindex });
 }
