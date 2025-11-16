@@ -96,6 +96,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(archipelago_connect)
         .add_function(archipelago_disconnect)
         .add_function(archipelago_send_check)
+        .add_function(archipelago_goal)
         .add_function(new_game_pressed)
         .add_function(get_level)
         .add_function(set_level)
@@ -239,7 +240,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_required_rebo_function(start_new_game_at)
         .add_required_rebo_function(disconnected)
         .add_required_rebo_function(archipelago_disconnected)
-        .add_required_rebo_function(archipelago_trigger_element)
+        .add_required_rebo_function(archipelago_trigger_cluster)
         .add_required_rebo_function(on_level_state_change)
         .add_required_rebo_function(on_resolution_change)
         .add_required_rebo_function(on_menu_open)
@@ -441,10 +442,9 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                         log!("{}", line);
                         STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(line)).unwrap();
                         // we want to trigger cluster id-10000000 in-game here
-                        if id >= 10000000 {
-                            archipelago_trigger_element(vm,
-                                (id - 10000000) as usize,
-                                0 as usize
+                        if id > 10000000 {
+                            archipelago_trigger_cluster(vm,
+                                id as usize
                             )?;
                         }
                     }
@@ -531,7 +531,7 @@ extern "rebo" {
     fn on_level_state_change(old: LevelState, new: LevelState);
     fn on_resolution_change();
     fn on_menu_open();
-    fn archipelago_trigger_element(cluster_index: usize, element_index: usize);
+    fn archipelago_trigger_cluster(cluster_index: usize);
 }
 
 fn config_path() -> PathBuf {
@@ -1133,6 +1133,15 @@ fn archipelago_send_check(location_id: i64) {
     STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
     STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
         .send(ReboToArchipelago::LocationChecks { locations: vec![location_id] })
+        .unwrap();
+}
+#[rebo::function(raw("Tas::archipelago_goal"))]
+fn archipelago_goal() {
+    let msg = format!("Archipelago: goal!");
+    log!("{}", msg);
+    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
+    STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
+        .send(ReboToArchipelago::Goal)
         .unwrap();
 }
 

@@ -309,21 +309,26 @@ fn randomizer_new_game_function() {
     RANDOMIZER_STATE.current = RANDOMIZER_STATE.queue.remove(0);
 }
 fn next_level() {
+    log(f"calling next_level");
     let sequence = match RANDOMIZER_STATE.current {
         Option::Some(current) => current.sequence(),
         Option::None => return,
     };
     if RANDOMIZER_STATE.seq_index < sequence.len() {
         let new_level = sequence.get(RANDOMIZER_STATE.seq_index).unwrap();
+        log(f"going to set level to {new_level-2}");
         Tas::set_level(new_level - 2);
     }
     RANDOMIZER_STATE.seq_index += 1;
+    log(f"RANDOMIZER_STATE.seq_index is now {RANDOMIZER_STATE.seq_index}");
 }
 fn randomizer_on_level_change_function(old: int, new: int) {
+    log(f"called randomizer_on_level_change_function, {old}, {new}");
     if new <= 0 {
         return;
     }
-    // next_level();
+    next_level();
+    log("done with randomizer_on_level_change_function");
 }
 fn randomizer_on_reset_function(old: int, new: int) {
     RANDOMIZER_STATE.seq_index = 1;

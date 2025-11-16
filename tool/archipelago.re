@@ -32,13 +32,6 @@ fn create_archipelago_menu() -> Ui {
     ))
 }
 
-
-struct ArchipelagoState {
-}
-
-static mut ARCHIPELAGO_STATE = ArchipelagoState {
-};
-
 static mut ARCHIPELAGO_COMPONENT = Component {
     id: ARCHIPELAGO_COMPONENT_ID,
     conflicts_with: List::of(ARCHIPELAGO_COMPONENT_ID, MULTIPLAYER_COMPONENT_ID, NEW_GAME_100_PERCENT_COMPONENT_ID, NEW_GAME_ALL_BUTTONS_COMPONENT_ID, NEW_GAME_NGG_COMPONENT_ID, PRACTICE_COMPONENT_ID, RANDOMIZER_COMPONENT_ID, TAS_COMPONENT_ID, WINDSCREEN_WIPERS_COMPONENT_ID),
@@ -50,7 +43,10 @@ static mut ARCHIPELAGO_COMPONENT = Component {
         return f"{text}\nArchipelago running"
     },
     draw_hud_always: fn() {},
-    on_new_game: fn() {},
+    on_new_game: fn() {
+        ARCHIPELAGO_STATE.last_level_unlocked = 1;
+        log("Reset last_level_unlocked");
+    },
     on_level_change: fn(old: int, new: int) {},
     on_buttons_change: fn(old: int, new: int) {
         // log(f"[AP] # buttons changed: {old} -> {new}");
@@ -63,13 +59,18 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     },
     on_reset: fn(old: int, new: int) {},
     on_element_pressed: fn(index: ElementIndex) {
-        log(f"[AP] Pressed {index.element_type} {index.element_index} in cluster {index.cluster_index}");
+        // log(f"[AP] Pressed {index.element_type} {index.element_index} in cluster {index.cluster_index}");
         if index.element_type == ElementType::Button {
-            // log(f"APAPAP send location check {10000000 + index.cluster_index} to Archipelago server");
-            // we want to send location check 10000000+index.cluster_index here
-            // more info on the protocol: https://github.com/ArchipelagoMW/Archipelago/blob/main/docs/network%20protocol.md#LocationChecks
-            // more info on the rs implementation: https://github.com/AshIndigo/archipelago_rs/blob/cec5da562020826a9628c8f7f2d2b8853cc9e3c1/src/client.rs#L238
-            Tas::archipelago_send_check(10000000 + index.cluster_index);
+            log(f"Send location check {10000000 + (index.cluster_index + 1) * 100 + index.element_index + 1} to Archipelago server");
+            Tas::archipelago_send_check(10000000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
+
+            if index.cluster_index == 30 { // 31 - 1
+                Tas::archipelago_goal();
+            }
+        }
+        if index.element_type == ElementType::Platform {
+            log(f"Send location check {10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1} to Archipelago server");
+            Tas::archipelago_send_check(10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
         }
     },
     on_element_released: fn(index: ElementIndex) {},
@@ -86,9 +87,49 @@ static mut ARCHIPELAGO_COMPONENT = Component {
 
 fn archipelago_disconnected() {
     remove_component(ARCHIPELAGO_COMPONENT);
+};
+struct ArchipelagoState {
+    last_level_unlocked: int,
 }
+static mut ARCHIPELAGO_STATE = ArchipelagoState {
+    last_level_unlocked: 1,
+};
 
-fn archipelago_trigger_element(clusterindex: int, elementindex: int){
-    Tas::set_level(clusterindex);
-    Tas::trigger_element(ElementIndex { cluster_index: clusterindex, element_type: ElementType::Button, element_index: elementindex });
+// triggers cluster clusterindex
+fn archipelago_trigger_cluster(item_index: int){
+    let clusterindex = item_index - 10000000;
+    if clusterindex < 32 {
+        let last_unlocked = ARCHIPELAGO_STATE.last_level_unlocked;
+        log(f"Received Trigger cluster {clusterindex} [{last_unlocked}]");
+        Tas::set_level(clusterindex - 2);
+        if last_unlocked == 7 {
+            Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 1 });
+        }
+        if last_unlocked == 10 {
+            Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 1 });
+        }
+        if last_unlocked == 18 {
+            Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 1 });
+        }
+        if last_unlocked == 26 {
+            Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 1 });
+            Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 2 });
+        }
+        if last_unlocked == 28 {
+            Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 1 });
+        }
+        Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 0 });
+        ARCHIPELAGO_STATE.last_level_unlocked = clusterindex;
+    }
+
+    if item_index >= 20000000 {
+        if item_index < 30000000 {
+            log(f"set_level {item_index - 20000000}");
+            Tas::set_level(item_index - 20000000);
+        }
+    }
+    if item_index >= 30000000 {
+        log(f"trigger_element {item_index - 30000000} Button 0");
+        Tas::trigger_element(ElementIndex { cluster_index: item_index - 30000000, element_type: ElementType::Button, element_index: 0 });
+    }
 }
