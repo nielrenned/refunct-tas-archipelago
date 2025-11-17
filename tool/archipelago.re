@@ -1,7 +1,7 @@
 fn create_archipelago_menu() -> Ui {
     Ui::new("Archipelago:", List::of(
         UiElement::Input(Input {
-            label: Text { text: "Connect (server:port,game,slot[,password])" },
+            label: Text { text: "Connect (server:port,slot[,password])" },
             input: "",
             onclick: fn(input: string) {
                 if input.len_utf8() == 0 {
@@ -9,10 +9,9 @@ fn create_archipelago_menu() -> Ui {
                 }
                 let args = input.split(",");
                 let server_and_port = match args.get(0) { Option::Some(s) => s.trim(), Option::None => return };
-                let game = match args.get(1) { Option::Some(s) => s.trim(), Option::None => return };
-                let slot = match args.get(2) { Option::Some(s) => s.trim(), Option::None => return };
-                let password = args.get(3);
-                Tas::archipelago_connect(server_and_port, game, slot, password);
+                let slot = match args.get(1) { Option::Some(s) => s.trim(), Option::None => return };
+                let password = args.get(2);
+                Tas::archipelago_connect(server_and_port, "Refunct", slot, password);
                 add_component(ARCHIPELAGO_COMPONENT);
                 leave_ui();
             },
@@ -32,6 +31,15 @@ fn create_archipelago_menu() -> Ui {
     ))
 }
 
+struct ArchipelagoState {
+    last_level_unlocked: int,
+    grass: int,
+}
+static mut ARCHIPELAGO_STATE = ArchipelagoState {
+    last_level_unlocked: 1,
+    grass: 0,
+};
+
 static mut ARCHIPELAGO_COMPONENT = Component {
     id: ARCHIPELAGO_COMPONENT_ID,
     conflicts_with: List::of(ARCHIPELAGO_COMPONENT_ID, MULTIPLAYER_COMPONENT_ID, NEW_GAME_100_PERCENT_COMPONENT_ID, NEW_GAME_ALL_BUTTONS_COMPONENT_ID, NEW_GAME_NGG_COMPONENT_ID, PRACTICE_COMPONENT_ID, RANDOMIZER_COMPONENT_ID, TAS_COMPONENT_ID, WINDSCREEN_WIPERS_COMPONENT_ID),
@@ -40,11 +48,12 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     on_tick: update_players,
     on_yield: fn() {},
     draw_hud_text: fn(text: string) -> string {
-        return f"{text}\nArchipelago running"
+        return f"{text}\nArchipelago running\nGrass {ARCHIPELAGO_STATE.grass}/100"
     },
     draw_hud_always: fn() {},
     on_new_game: fn() {
         ARCHIPELAGO_STATE.last_level_unlocked = 1;
+        ARCHIPELAGO_STATE.grass = 0;
         log("Reset last_level_unlocked");
     },
     on_level_change: fn(old: int, new: int) {},
@@ -64,13 +73,17 @@ static mut ARCHIPELAGO_COMPONENT = Component {
             log(f"Send location check {10000000 + (index.cluster_index + 1) * 100 + index.element_index + 1} to Archipelago server");
             Tas::archipelago_send_check(10000000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
 
-            if index.cluster_index == 30 { // 31 - 1
-                Tas::archipelago_goal();
-            }
+            // if index.cluster_index == 30 { // 31 - 1
+            //     Tas::archipelago_goal();
+            // }
         }
         if index.element_type == ElementType::Platform {
             log(f"Send location check {10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1} to Archipelago server");
             Tas::archipelago_send_check(10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
+
+            if index.cluster_index == 30 && index.element_index == 2 && ARCHIPELAGO_STATE.grass >= 100 {
+                Tas::archipelago_goal();
+            }
         }
     },
     on_element_released: fn(index: ElementIndex) {},
@@ -87,12 +100,6 @@ static mut ARCHIPELAGO_COMPONENT = Component {
 
 fn archipelago_disconnected() {
     remove_component(ARCHIPELAGO_COMPONENT);
-};
-struct ArchipelagoState {
-    last_level_unlocked: int,
-}
-static mut ARCHIPELAGO_STATE = ArchipelagoState {
-    last_level_unlocked: 1,
 };
 
 // triggers cluster clusterindex
@@ -132,4 +139,8 @@ fn archipelago_trigger_cluster(item_index: int){
         log(f"trigger_element {item_index - 30000000} Button 0");
         Tas::trigger_element(ElementIndex { cluster_index: item_index - 30000000, element_type: ElementType::Button, element_index: 0 });
     }
+}
+
+fn got_grass(){
+    ARCHIPELAGO_STATE.grass += 1;
 }

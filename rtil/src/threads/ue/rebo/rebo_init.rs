@@ -241,6 +241,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_required_rebo_function(disconnected)
         .add_required_rebo_function(archipelago_disconnected)
         .add_required_rebo_function(archipelago_trigger_cluster)
+        .add_required_rebo_function(got_grass)
         .add_required_rebo_function(on_level_state_change)
         .add_required_rebo_function(on_resolution_change)
         .add_required_rebo_function(on_menu_open)
@@ -447,6 +448,9 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                                 id as usize
                             )?;
                         }
+                        if id == 9999999 {
+                            got_grass(vm)?;
+                        }
                     }
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::LocationInfo(info))) => {
@@ -532,6 +536,7 @@ extern "rebo" {
     fn on_resolution_change();
     fn on_menu_open();
     fn archipelago_trigger_cluster(cluster_index: usize);
+    fn got_grass();
 }
 
 fn config_path() -> PathBuf {
