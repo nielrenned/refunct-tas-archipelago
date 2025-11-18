@@ -33,7 +33,7 @@ mod gameinstance;
 mod platform_misc;
 mod texture;
 mod gameusersettings;
-mod reflection;
+pub mod reflection;
 mod map_editor;
 mod kismet_system_library;
 mod engine;

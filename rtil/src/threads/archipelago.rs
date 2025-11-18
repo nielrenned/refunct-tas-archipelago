@@ -1,3 +1,4 @@
+
 use std::error::Error;
 use std::thread;
 use archipelago_rs::client::{ArchipelagoClient, ArchipelagoClientReceiver, ArchipelagoError};
@@ -6,6 +7,10 @@ use crossbeam_channel::Sender;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::AbortHandle;
 use crate::threads::{ArchipelagoToRebo, ReboToArchipelago};
+
+use crate::native::UeScope;
+
+
 
 pub fn run(archipelago_rebo_tx: Sender<ArchipelagoToRebo>, mut rebo_archipelago_rx: UnboundedReceiver<ReboToArchipelago>) {
     thread::spawn(move || {
@@ -27,7 +32,26 @@ pub fn run(archipelago_rebo_tx: Sender<ArchipelagoToRebo>, mut rebo_archipelago_
                             sender = Some(s);
                             let join_handle = tokio::spawn(handle_receiver(receiver, archipelago_rebo_tx.clone()));
                             receiver_abort_handle = Some(join_handle.abort_handle());
-                            log!("Connected to game `{game}` slot `{slot}`");
+
+
+                            // Disable all buttons in the game immediately
+                            UeScope::with(|scope| {
+                                
+                                for item in scope.iter_global_object_array() {
+                                    let object = item.object();
+                                    let class_name = object.class().name();
+                                    let name = object.name();
+                                    log!("Found object: {} {}", class_name, name);
+
+                                    if class_name == "BP_Button_C" && name != "Default__BP_Button_C" {
+                                        
+                                    }
+
+                                    // // DISABLE BUTTONS HERE
+                                }
+                            });
+                            log!("Disabled all buttons in the game");
+
                         },
                         ReboToArchipelago::ClientMessage(msg) => sender.as_mut().unwrap().send(msg).await?,
                         ReboToArchipelago::Disconnect => {
