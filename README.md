@@ -6,6 +6,9 @@ How does it work, what are items and locations?
 - Location checks are making platforms grassy (200+ locations).
 - Your goal is to collect 100 Grass and then jump on platform 20-1 in the very bottom-left.
 
+### Completely new to Archipelago?
+Maybe [this](https://github.com/spinerak/refunct-tas-archipelago/blob/master/AP_HELP.md) helps.
+
 ## Here's how to play Refunct in Archipelago.
 - You need to own the original game Refunct (via Steam for example).
 - Download the practice-windows.zip from the [release](https://github.com/spinerak/refunct-tas-archipelago/releases/latest). Unzip the contents into any folder.
