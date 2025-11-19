@@ -4,7 +4,6 @@
 How does it work, what are items and locations?
 - You will have to unlock every cluster of platforms (that normally rise by pressing a button).
 - Location checks are making platforms grassy (200+ locations).
-- Buttons and platforms underneath buttons are not checks.
 - Your goal is to collect 100 Grass and then jump on platform 20-1 in the very bottom-left.
 
 ## Here's how to play Refunct in Archipelago.
@@ -22,10 +21,11 @@ How does it work, what are items and locations?
 - Red buttons don't do anything, so don't worry about it.
 
 ## Other stuff
+- Buttons and platforms underneath buttons are not checks. (Red) buttons don't do anything.
 - Universal Tracker can help you to figure out which platforms are accessible.
 - You should be able to quit a game and continue it later, just follow the steps again.
 - The final cluster in the game won't appear and will stay underwater for now (the final button is weird).
-- There's many improvements to be made, regarding the buttons and the grassy platforms. I don't know how to do that yet. Of course also more yaml options, but let's test this for now.
+- There's many improvements to be made still.
 
 # Below text is the text of the original read me for the Refunct TaS Tool
 # Refunct TaS Tool
