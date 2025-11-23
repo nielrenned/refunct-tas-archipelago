@@ -12,9 +12,10 @@ use rebo::{DisplayValue, ExecError, IncludeConfig, Map, Output, ReboConfig, Span
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use websocket::{ClientBuilder, Message, OwnedMessage, WebSocketError};
+use crate::log;
 use crate::native::{character::USceneComponent, try_find_element_index, ue::FVector, AActor, ALiftBaseUE, AMyCharacter, AMyHud, ActorWrapper, EBlendMode, FApp, FViewport, KismetSystemLibrary, Level, LevelState, LevelWrapper, ObjectIndex, ObjectWrapper, UGameplayStatics, UMyGameInstance, UObject, UTexture2D, UWorld, UeObjectWrapperType, UeScope, LEVELS};
 use protocol::{Request, Response};
-use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
+use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo, archipelago};
 use super::{STATE, livesplit::{Game, NewGameGlitch, SplitsSaveError, SplitsLoadError}};
 use serde::{Serialize, Deserialize};
 use crate::threads::ue::{Suspend, UeEvent, rebo::YIELDER};
@@ -24,6 +25,7 @@ use chrono::{DateTime, Local};
 use crate::threads::ue::rebo::livesplit;
 use crate::threads::ue::iced_ui::Clipboard;
 use crate::threads::ue::iced_ui::rebo_elements::{IcedButton, IcedColumn, IcedElement, IcedRow, IcedText, IcedWindow};
+
 use crate::native::{BoolValueWrapper};
 
 pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
@@ -102,8 +104,10 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(get_level)
         .add_function(set_level)
         .add_function(trigger_element)
-        .add_function(activate_all_buttons)
-        .add_function(deactivate_all_buttons)
+        .add_function(archipelago_activate_all_buttons)
+        .add_function(archipelago_deactivate_all_buttons)
+        .add_function(archipelago_set_wall_jump_and_ledge_grab)
+        .add_function(archipelago_set_jump_pads)
         .add_function(set_start_seconds)
         .add_function(set_start_partial_seconds)
         .add_function(set_end_seconds)
@@ -243,8 +247,11 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_required_rebo_function(start_new_game_at)
         .add_required_rebo_function(disconnected)
         .add_required_rebo_function(archipelago_disconnected)
-        .add_required_rebo_function(archipelago_trigger_cluster)
-        .add_required_rebo_function(got_grass)
+        .add_required_rebo_function(archipelago_received_item)
+        .add_required_rebo_function(archipelago_got_grass)
+        .add_required_rebo_function(archipelago_checked_location)
+        .add_required_rebo_function(archipelago_received_slot_data)
+        .add_required_rebo_function(archipelago_start)
         .add_required_rebo_function(on_level_state_change)
         .add_required_rebo_function(on_resolution_change)
         .add_required_rebo_function(on_menu_open)
@@ -414,92 +421,115 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
 
         // check archipelago
         loop {
-            let res = STATE.lock().unwrap().as_mut().unwrap().archipelago_rebo_rx.try_recv();
+            let mut res = STATE.lock().unwrap().as_mut().unwrap().archipelago_rebo_rx.try_recv();
             match res {
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => panic!("archipelago_rebo_rx became disconnected"),
                 Ok(ArchipelagoToRebo::ConnectionAborted) => archipelago_disconnected(vm)?,
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::RoomInfo(info))) => {
+                    log!("RoomInfo message");
                     let msg = format!("Archipelago ServerMessage::RoomInfo: {:?}", info);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::ConnectionRefused(info))) => {
+                    log!("ConnectionRefused message");
                     let msg = format!("Archipelago ServerMessage::ConnectionRefused: {:?}", info);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::Connected(info))) => {
+                    log!("Connected message");
                     let msg = format!("Archipelago ServerMessage::Connected: {:?}", info);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
+                    // example of message:
+                    // Connected { 
+                    //    team: 0, 
+                    //    slot: 1, 
+                    //    players: [NetworkPlayer { team: 0, slot: 1, alias: "Player1", name: "Player1" }], 
+                    //    missing_locations: [10010103, 10010104], 
+                    //    checked_locations: [10010102, 10010105], 
+                    //    slot_data: Object {"ap_world_version": String("0.1.0"), "goal": Number(3)}, 
+                    //    slot_info: {1: NetworkSlot { name: "Player1", game: "Refunct", type: Player, group_members: [] }}, 
+                    //    hint_points: 2 
+                    // }
+                    archipelago_start(vm)?;
+                    for loc in &info.checked_locations {
+                        let value: i64 = loc - 10010000;
+                        let cluster: i64 = value / 100;
+                        let platform: i64 = value % 100;
+                        archipelago_checked_location(vm,
+                            cluster as usize,
+                            platform as usize
+                        )?;
+                    }
+                    for (key, value) in info.slot_data.as_object().unwrap() {
+                        archipelago_received_slot_data(vm,
+                            key.clone(),
+                            value.clone().to_string()
+                        )?;
+                    }
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::ReceivedItems(received))) => {
+                    log!("ReceivedItems message");
                     let msg = format!("Archipelago ServerMessage::ReceivedItems: {:?}", received);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
 
                     //loop through received items
                     for net in &received.items {
                         let id = net.item as i32;
                         let line = format!("APAPAP Trigger Cluster #{} in-game", id - 10000000);
                         log!("{}", line);
-                        STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(line)).unwrap();
                         // we want to trigger cluster id-10000000 in-game here
-                        if id > 10000000 {
-                            archipelago_trigger_cluster(vm,
-                                id as usize
-                            )?;
-                        }
-                        if id == 9999999 {
-                            got_grass(vm)?;
-                        }
+
+                        archipelago_received_item(vm,
+                            id as usize
+                        )?;
+
                     }
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::LocationInfo(info))) => {
+                    log!("LocationInfo message");
                     let msg = format!("Archipelago ServerMessage::LocationInfo: {:?}", info);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::RoomUpdate(info))) => {
+                    log!("RoomUpdate message");
                     let msg = format!("Archipelago ServerMessage::RoomUpdate: {:?}", info);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::Print(text))) => {
+                    log!("Print message");
                     let msg = format!("Archipelago ServerMessage::Print: {:?}", text);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::PrintJSON(json))) => {
+                    log!("PrintJSON message");
                     let msg = format!("Archipelago ServerMessage::PrintJSON: {:?}", json);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::DataPackage(pkg))) => {
+                    log!("DataPackage message");
                     let msg = format!("Archipelago ServerMessage::DataPackage: {:?}", pkg);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::Bounced(info))) => {
+                    log!("Bounced message");
                     let msg = format!("Archipelago ServerMessage::Bounced: {:?}", info);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::InvalidPacket(pkt))) => {
+                    log!("InvalidPacket message");
                     let msg = format!("Archipelago ServerMessage::InvalidPacket: {:?}", pkt);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::Retrieved(info))) => {
+                    log!("Retrieved message");
                     let msg = format!("Archipelago ServerMessage::Retrieved: {:?}", info);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::SetReply(reply))) => {
+                    log!("SetReply message");
                     let msg = format!("Archipelago ServerMessage::SetReply: {:?}", reply);
                     log!("{}", msg);
-                    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
                 },
             }
         }
@@ -538,8 +568,11 @@ extern "rebo" {
     fn on_level_state_change(old: LevelState, new: LevelState);
     fn on_resolution_change();
     fn on_menu_open();
-    fn archipelago_trigger_cluster(cluster_index: usize);
-    fn got_grass();
+    fn archipelago_received_item(cluster_index: usize);
+    fn archipelago_got_grass();
+    fn archipelago_checked_location(cluster: usize, platform: usize);
+    fn archipelago_received_slot_data(name_of_options: String, value_of_options: String);
+    fn archipelago_start();
 }
 
 fn config_path() -> PathBuf {
@@ -1136,9 +1169,9 @@ fn archipelago_disconnect() {
 }
 #[rebo::function(raw("Tas::archipelago_send_check"))]
 fn archipelago_send_check(location_id: i64) {
-    let msg = format!("Archipelago: sending location check for {}", location_id);
-    log!("{}", msg);
-    STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
+    // let msg = format!("Archipelago: sending location check for {}", location_id);
+    // log!("{}", msg);
+    // STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
     STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
         .send(ReboToArchipelago::LocationChecks { locations: vec![location_id] })
         .unwrap();
@@ -1162,8 +1195,8 @@ fn get_level() -> i32 {
 fn set_level(level: i32) {
     LevelState::set_level(level);
 }
-#[rebo::function("Tas::deactivate_all_buttons")]
-fn deactivate_all_buttons(index: i32) {
+#[rebo::function("Tas::archipelago_deactivate_all_buttons")]
+fn archipelago_deactivate_all_buttons(index: i32) {
     // Disable all buttons in the game immediately
     let msg = format!("Gonna deactivate all buttons");
     log!("{}", msg);
@@ -1172,11 +1205,14 @@ fn deactivate_all_buttons(index: i32) {
         for item in scope.iter_global_object_array() {
             let object = item.object();
             if object.is_null() {
-                log!("Object is null, skipping");
+                // log!("Object is null, skipping");
                 continue;
             }
             let class_name = object.class().name();
             let name = object.name();
+            // let msg = format!("Found object: class_name={:?}, name={:?}", class_name, name);
+            // log!("{}", msg);
+            // STATE.lock().unwrap().as_ref().unwrap().rebo_stream_tx.send(ReboToStream::Print(msg)).unwrap();
             if class_name == "BP_Button_C" && name != "Default__BP_Button_C" {
                 if index < 0 || name == format!("BP_Button_C_{}", index) {
                     // let state_pressed = object.get_field("IsPressed").unwrap::<BoolValueWrapper>()._get();
@@ -1190,8 +1226,8 @@ fn deactivate_all_buttons(index: i32) {
         }
     });
 }
-#[rebo::function("Tas::activate_all_buttons")]
-fn activate_all_buttons(index: i32) {
+#[rebo::function("Tas::archipelago_activate_all_buttons")]
+fn archipelago_activate_all_buttons(index: i32) {
     // Enable all buttons in the game immediately
     let msg = format!("Gonna activate all buttons");
     log!("{}", msg);
@@ -1200,11 +1236,21 @@ fn activate_all_buttons(index: i32) {
         for item in scope.iter_global_object_array() {
             let object = item.object();
             if object.is_null() {
-                log!("Object is null, skipping");
+                // log!("Object is null, skipping");
                 continue;
             }
             let class_name = object.class().name();
             let name = object.name();
+            // log!("Found object: class_name={:?}, name={:?}", class_name, name);
+            // log!("This object {}, {} has the following fields: {}", class_name, name, object.class().iter_properties().map(|p| p.name()).join(", "));
+            
+            // if class_name == "BP_Lift_C" {
+            //     log!("Setting lift speed for {}, current speed = {}", name, object.get_field("MinNetUpdateFrequency").unwrap::<&Cell<f32>>().get());
+            //     log!("Setting lift speed for {}, current speed = {}", name, object.get_field("NetUpdateFrequency").unwrap::<&Cell<f32>>().get());
+            //     object.get_field("MinNetUpdateFrequency").unwrap::<&Cell<f32>>().set(0.1);
+            //     object.get_field("NetUpdateFrequency").unwrap::<&Cell<f32>>().set(0.1);
+            // }
+            
             if class_name == "BP_Button_C" && name != "Default__BP_Button_C" {
                 if index < 0 || name == format!("BP_Button_C_{}", index) {
                     // let state_pressed = object.get_field("IsPressed").unwrap::<BoolValueWrapper>()._get();
@@ -1258,6 +1304,118 @@ fn trigger_element(index: ElementIndex) {
             ElementType::Springpad => (),
         }
     });
+}
+#[rebo::function("Tas::archipelago_set_jump_pads")]
+fn archipelago_set_jump_pads(enabled: i32) {
+    log!("Archipelago: setting jump pads to {}", enabled);
+    unsafe {
+        let character = ObjectWrapper::new(AMyCharacter::get_player().as_ptr() as *mut UObject);
+        if enabled == 0 {  // no jump pads
+            character.get_field("LaunchVelocityZ").unwrap::<&Cell<f32>>().set(1000.);
+        } else {
+            character.get_field("LaunchVelocityZ").unwrap::<&Cell<f32>>().set(1979.899);  // default value
+        }
+    }
+}
+#[rebo::function("Tas::archipelago_set_wall_jump_and_ledge_grab")]
+fn archipelago_set_wall_jump_and_ledge_grab(wall_jump: i32, ledge_grab: i32) {
+    // 0 is off, 1 is on, 2 is keep current
+    log!("Archipelago: setting wall jump to {}", wall_jump);
+    log!("Archipelago: setting ledge grab to {}", ledge_grab);
+    unsafe {
+        let character = ObjectWrapper::new(AMyCharacter::get_player().as_ptr() as *mut UObject);
+
+        // for field in character.class().iter_fields() {
+        //     log!("Found field: {:?}", field.name());
+        // }
+
+        // // Print a bunch of additional fields; if they are not floats print "not a float".
+        // let character_ptr = character.as_ptr() as *mut UObject;
+
+        // let try_field_float = |field_name: &str| -> String {
+        //     let name = field_name.to_string();
+        //     match std::panic::catch_unwind(move || {
+        //         // recreate wrapper inside unwind-safe closure from raw pointer
+        //         let character = unsafe { ObjectWrapper::new(character_ptr) };
+        //         character.get_field(&name).unwrap::<&Cell<f32>>().get()
+        //     }) {
+        //         Ok(v) => format!("{}", v),
+        //         Err(_) => "not a float".to_string(),
+        //     }
+        // };
+
+        // let try_field_int = |field_name: &str| -> String {
+        //     let name = field_name.to_string();
+        //     match std::panic::catch_unwind(move || {
+        //         // recreate wrapper inside unwind-safe closure from raw pointer
+        //         let character = unsafe { ObjectWrapper::new(character_ptr) };
+        //         character.get_field(&name).unwrap::<&Cell<i32>>().get()
+        //     }) {
+        //         Ok(v) => format!("{}", v),
+        //         Err(_) => "not a float".to_string(),
+        //     }
+        // };
+
+        // let fields_float = [
+        //     "LastWallJumpTime",
+        //     "MinWallJumpInterval",
+        //     "MaxClimbWallAngle",
+        //     "LaunchVelocityZ",
+        //     "BonusJumpVelocityZ",
+        //     "JumpMaxHoldTime",
+        //     "StartBonusJumpTime",
+        //     "LastJumpTime",
+        //     "GravityScale",
+        //     "VerticalPipeLaunchSpeed",
+        //     "ClimbSpeed",
+        //     "MinTravelSpeed",
+        //     "BaseSpeed",
+        //     "VerticalPipeMinAngle",
+        //     "MinForcedWallJumpAngle",
+        //     "MinWallJumpAngleDiff",
+        //     "MaxForcedWallJumpAngle",
+        // ];
+
+        // for &f in &fields_float {
+        //     let value = try_field_float(f);
+        //     log!("Field {}: {}", f, value);
+        // }
+
+        // let fields_float_int = [
+        //     "JumpCurrentCount",
+        //     "JumpMaxCount"
+        // ];
+
+        // for &f in &fields_float_int {
+        //     let value = try_field_int(f);
+        //     log!("Field {}: {}", f, value);
+        // }
+
+        if wall_jump >= 0 {
+            character.get_field("MinForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(-0.8);
+            character.get_field("MinWallJumpAngleDiff").unwrap::<&Cell<f32>>().set(0.8);
+            character.get_field("MaxForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(0.8);
+            if wall_jump == 0 {  // no wall jump
+                character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(385738752.);
+                character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(385738752.);
+            } else if wall_jump == 1 {  // just one wall jump
+                character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(-385738752.);
+                character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(1.);
+            } else{  // infinite wall jumps
+                character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(-385738752.);
+                character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(0.15);  // default value
+            }
+            
+        }
+        if ledge_grab >= 0 {
+            if ledge_grab == 0 {  // no ledge grab
+                character.get_field("MaxClimbWallAngle").unwrap::<&Cell<f32>>().set(-385738752.);
+            } else {  // yes ledge grab
+                character.get_field("MaxClimbWallAngle").unwrap::<&Cell<f32>>().set(-0.5);  // default value
+            }
+        }
+
+    }
 }
 #[rebo::function("Tas::set_start_seconds")]
 fn set_start_seconds(start_seconds: i32) {

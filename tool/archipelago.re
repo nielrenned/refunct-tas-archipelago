@@ -34,10 +34,24 @@ fn create_archipelago_menu() -> Ui {
 struct ArchipelagoState {
     last_level_unlocked: int,
     grass: int,
+    wall_jump: int,
+    ledge_grab: int,
+    swim: int,
+    jumppads: int,
+    required_grass: int,
+    final_platform_c: int,
+    final_platform_p: int,
 }
 static mut ARCHIPELAGO_STATE = ArchipelagoState {
     last_level_unlocked: 1,
     grass: 0,
+    wall_jump: 0,
+    ledge_grab: 0,
+    swim: 0,
+    jumppads: 0,
+    required_grass: 1000,
+    final_platform_c: 100,
+    final_platform_p: 1,
 };
 
 static mut ARCHIPELAGO_COMPONENT = Component {
@@ -48,13 +62,31 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     on_tick: update_players,
     on_yield: fn() {},
     draw_hud_text: fn(text: string) -> string {
-        return f"{text}\nArchipelago running\nGoal: get grass {ARCHIPELAGO_STATE.grass}/100\n-> go to Platform 21-1"
+        let ledge_grab = if ARCHIPELAGO_STATE.ledge_grab > 0 { "YES" } else { "NO" };
+        let wall_jump = if ARCHIPELAGO_STATE.wall_jump >= 2 { "INF" } else if ARCHIPELAGO_STATE.wall_jump == 1 { "ONE" } else { "NO" };
+        let jumppads = if ARCHIPELAGO_STATE.jumppads > 0 { "YES" } else { "NO" };
+        let swim = if ARCHIPELAGO_STATE.swim > 0 { "YES" } else { "NO" };
+        return f"{text}\nArchipelago running
+
+Goal: get grass {ARCHIPELAGO_STATE.grass}/{ARCHIPELAGO_STATE.required_grass}
+-> go to Platform {ARCHIPELAGO_STATE.final_platform_c}-{ARCHIPELAGO_STATE.final_platform_p}
+
+Abilities
+Ledge Grab: {ledge_grab}
+Wall Jump: {wall_jump}
+Jumppads: {jumppads}
+Swim: {swim}"
     },
     draw_hud_always: fn() {},
     on_new_game: fn() {
         ARCHIPELAGO_STATE.last_level_unlocked = 1;
         ARCHIPELAGO_STATE.grass = 0;
-        // log("Reset last_level_unlocked");
+        ARCHIPELAGO_STATE.ledge_grab = 0;
+        ARCHIPELAGO_STATE.wall_jump = 0;
+        ARCHIPELAGO_STATE.swim = 0;
+        ARCHIPELAGO_STATE.jumppads = 0;
+        Tas::archipelago_deactivate_all_buttons(-1);
+        log("Reset last_level_unlocked");
     },
     on_level_change: fn(old: int, new: int) {},
     on_buttons_change: fn(old: int, new: int) {
@@ -81,7 +113,7 @@ static mut ARCHIPELAGO_COMPONENT = Component {
             log(f"Platform {index.cluster_index + 1}-{index.element_index + 1}");
             Tas::archipelago_send_check(10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
 
-            if index.cluster_index == 20 && index.element_index == 0 && ARCHIPELAGO_STATE.grass >= 100 {
+            if index.cluster_index == ARCHIPELAGO_STATE.final_platform_c - 1 && index.element_index == ARCHIPELAGO_STATE.final_platform_p - 1 && ARCHIPELAGO_STATE.grass >= ARCHIPELAGO_STATE.required_grass {
                 Tas::archipelago_goal();
             }
         }
@@ -103,10 +135,33 @@ fn archipelago_disconnected() {
 };
 
 // triggers cluster clusterindex
-fn archipelago_trigger_cluster(item_index: int){
+fn archipelago_received_item(item_index: int){
+    if item_index == 9999990 {  // Ledge Grab
+        log("Received Ledge Grab!");
+        ARCHIPELAGO_STATE.ledge_grab += 1;
+        Tas::archipelago_set_wall_jump_and_ledge_grab(-1, 1);
+    }
+    if item_index == 9999991 {  // Wall Jump
+        log("Received Wall Jump!");
+        ARCHIPELAGO_STATE.wall_jump += 1;
+        Tas::archipelago_set_wall_jump_and_ledge_grab(ARCHIPELAGO_STATE.wall_jump, -1);
+    }
+    if item_index == 9999992 {  // Swim
+        log("Received Swim!");
+        ARCHIPELAGO_STATE.swim += 1;
+        Tas::set_kill_z(-6000.);
+    }
+    if item_index == 9999993 {  // Jumppads
+        log("Received Jumppads!");
+        ARCHIPELAGO_STATE.jumppads += 1;
+        Tas::archipelago_set_jump_pads(1);
+    }
+    if item_index == 9999999 {  // Grass
+        archipelago_got_grass();
+    }
     let clusterindex = item_index - 10000000;
-    if clusterindex < 32 {
-        Tas::activate_all_buttons(-1);
+    if clusterindex >= 2 && clusterindex < 32 {
+        Tas::archipelago_activate_all_buttons(-1);
         let last_unlocked = ARCHIPELAGO_STATE.last_level_unlocked;
         log(f"Received Trigger Cluster {clusterindex}");
         Tas::set_level(clusterindex - 2);
@@ -128,7 +183,7 @@ fn archipelago_trigger_cluster(item_index: int){
         }
         Tas::trigger_element(ElementIndex { cluster_index: last_unlocked - 1, element_type: ElementType::Button, element_index: 0 });
         ARCHIPELAGO_STATE.last_level_unlocked = clusterindex;
-        Tas::deactivate_all_buttons(-1);
+        Tas::archipelago_deactivate_all_buttons(-1);
     }
 
     if item_index >= 20000000 && item_index < 30000000 {
@@ -141,15 +196,63 @@ fn archipelago_trigger_cluster(item_index: int){
     }
     if item_index >= 40000000 && item_index < 50000000{
         log(f"DEBUG activate button {item_index - 40000000} Button 0");
-        Tas::activate_all_buttons(item_index-40000000);
+        Tas::archipelago_activate_all_buttons(item_index-40000000);
     }
     if item_index >= 50000000 && item_index < 60000000{
         log(f"DEBUG deactivate button {item_index - 50000000} Button 0");
-        Tas::deactivate_all_buttons(item_index-50000000);
+        Tas::archipelago_deactivate_all_buttons(item_index-50000000);
+    }
+    if item_index == 60000000{
+        Tas::archipelago_set_wall_jump_and_ledge_grab(0, 0);
+    }
+    if item_index == 60000001{
+        Tas::archipelago_set_wall_jump_and_ledge_grab(1, -1);
+    }
+    if item_index == 60000005{
+        Tas::set_kill_z(-60.);
+    }
+    if item_index == 60000010{
+        Tas::archipelago_set_jump_pads(0);
     }
 }
 
-fn got_grass(){
+fn archipelago_got_grass(){
     ARCHIPELAGO_STATE.grass += 1;
     log("Got grass!");
+}
+
+fn archipelago_start(){
+    ARCHIPELAGO_STATE.last_level_unlocked = 1;
+    ARCHIPELAGO_STATE.grass = 0;
+    ARCHIPELAGO_STATE.wall_jump = 0;
+    Tas::set_kill_z(-60.);
+    Tas::archipelago_set_wall_jump_and_ledge_grab(0, 0);
+    Tas::archipelago_set_jump_pads(0);
+    log("Archipelago started");
+}
+
+fn archipelago_checked_location(cluster: int, platform: int){
+    log(f"Already checked locations {cluster} {platform}");
+    Tas::trigger_element(ElementIndex { cluster_index: cluster-1, element_type: ElementType::Platform, element_index: platform-1 });
+}
+
+fn archipelago_received_slot_data(key: string, value: string){
+    log(f"Received slot data {key} = {value}");
+    if key == "required_grass" {
+        ARCHIPELAGO_STATE.required_grass = value.parse_int().unwrap();
+    }
+    if key == "final_platform"{
+        if value == "0" {
+            ARCHIPELAGO_STATE.final_platform_c = 1;
+            ARCHIPELAGO_STATE.final_platform_p = 2;
+        }
+        if value == "1" {
+            ARCHIPELAGO_STATE.final_platform_c = 21;
+            ARCHIPELAGO_STATE.final_platform_p = 1;
+        }
+        if value == "2" {
+            ARCHIPELAGO_STATE.final_platform_c = 29;
+            ARCHIPELAGO_STATE.final_platform_p = 2;
+        }
+    }
 }

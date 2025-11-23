@@ -2,7 +2,7 @@
 use std::error::Error;
 use std::thread;
 use archipelago_rs::client::{ArchipelagoClient, ArchipelagoClientReceiver, ArchipelagoError};
-use archipelago_rs::protocol::ClientStatus; // adjust path if needed
+use archipelago_rs::protocol::{ClientStatus, ServerMessage}; // adjust path if needed
 use crossbeam_channel::Sender;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::AbortHandle;
@@ -27,30 +27,14 @@ pub fn run(archipelago_rebo_tx: Sender<ArchipelagoToRebo>, mut rebo_archipelago_
                             }
                             let mut client = ArchipelagoClient::new(&server_and_port).await?;
                             log!("Connected to archipelago server `{server_and_port}`");
-                            client.connect(&game, &slot, password.as_deref(), items_handling, tags)
+                            let connected_info = client.connect(&game, &slot, password.as_deref(), items_handling, tags)
                                 .await?;
+                            log!("Connected info: {:?}", connected_info);
+                            archipelago_rebo_tx.send(ArchipelagoToRebo::ServerMessage(ServerMessage::Connected(connected_info))).unwrap();
                             let (s, mut receiver) = client.split();
                             sender = Some(s);
                             let join_handle = tokio::spawn(handle_receiver(receiver, archipelago_rebo_tx.clone()));
                             receiver_abort_handle = Some(join_handle.abort_handle());
-
-
-                            // // Disable all buttons in the game immediately
-                            // UeScope::with(|scope| {
-                                
-                            //     for item in scope.iter_global_object_array() {
-                            //         let object = item.object();
-                            //         let class_name = object.class().name();
-                            //         let name = object.name();
-
-                            //         if class_name == "BP_Button_C" && name != "Default__BP_Button_C" {
-                            //             unsafe {
-                            //                 object.get_field("IsPressed").unwrap::<BoolValueWrapper>().set(true);
-                            //             }
-                            //         }
-                            //     }
-                            // });
-                            // log!("Disabled all buttons in the game");
 
                         },
                         ReboToArchipelago::ClientMessage(msg) => sender.as_mut().unwrap().send(msg).await?,
@@ -89,13 +73,16 @@ pub fn run(archipelago_rebo_tx: Sender<ArchipelagoToRebo>, mut rebo_archipelago_
 async fn handle_receiver(mut receiver: ArchipelagoClientReceiver, archipelago_rebo_tx: Sender<ArchipelagoToRebo>) {
     loop {
         match receiver.recv().await {
-            Ok(None) => continue,
+            Ok(None) => {
+                continue;
+            }
             Err(e) => {
-                log!("Error reading from archipelago server: {e:?}");
                 archipelago_rebo_tx.send(ArchipelagoToRebo::ConnectionAborted).unwrap();
                 break;
             }
-            Ok(Some(msg)) => archipelago_rebo_tx.send(ArchipelagoToRebo::ServerMessage(msg)).unwrap(),
+            Ok(Some(msg)) => {
+                archipelago_rebo_tx.send(ArchipelagoToRebo::ServerMessage(msg)).unwrap();
+            }
         }
     }
 }
