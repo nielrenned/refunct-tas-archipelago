@@ -273,13 +273,13 @@ impl Settings {
     }
 
     fn increase_ui_scale(mut self) {
-        self.ui_scale += 0.5;
+        self.ui_scale += 0.1;
         self.ui_scale = self.ui_scale.min(10.);
         self.store();
     }
     fn decrease_ui_scale(mut self) {
-        self.ui_scale -= 0.5;
-        self.ui_scale = self.ui_scale.max(0.5);
+        self.ui_scale -= 0.1;
+        self.ui_scale = self.ui_scale.max(0.3);
         self.store();
     }
     fn toggle_show_character_stats(mut self) {

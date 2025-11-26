@@ -200,6 +200,7 @@ fn on_menu_open() {
 
 static COLOR_BLACK = Color { red: 0., green: 0., blue: 0., alpha: 1. };
 static COLOR_RED = Color { red: 1., green: 0., blue: 0., alpha: 1. };
+static COLOR_WHITE = Color { red: 1., green: 1., blue: 1., alpha: 1. };
 
 impl Ui {
     fn onclick(self) {
@@ -238,7 +239,7 @@ impl Ui {
         }
         Tas::draw_text(DrawText {
             text: self.name.text,
-            color: COLOR_BLACK,
+            color: COLOR_WHITE,
             x: 0.,
             y: 0.,
             scale: SETTINGS.ui_scale,

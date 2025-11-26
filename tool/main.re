@@ -78,22 +78,22 @@ fn create_base_menu() -> Ui {
             label: Text { text: "Randomizer" },
             onclick: fn(label: Text) { enter_ui(create_randomizer_menu()); },
         }),
-        UiElement::Button(UiButton {
-            label: Text { text: "New Game Actions" },
-            onclick: fn(label: Text) { enter_ui(create_new_game_actions_menu()); },
-        }),
+//        UiElement::Button(UiButton {
+//            label: Text { text: "New Game Actions" },
+//            onclick: fn(label: Text) { enter_ui(create_new_game_actions_menu()); },
+//        }),
 //        UiElement::Button(UiButton {
 //            label: Text { text: "Multiplayer" },
 //            onclick: fn(label: Text) { enter_ui(create_multiplayer_menu()); },
 //        }),
         UiElement::Button(UiButton {
-            label: Text { text: "Archipelago" },
+            label: Text { text: "Archipelago (PRESS NEW GAME FIRST)" },
             onclick: fn(label: Text) { enter_ui(create_archipelago_menu()); },
         }),
-        UiElement::Button(UiButton {
-            label: Text { text: "Map Editor" },
-            onclick: fn(label: Text) { enter_ui(create_map_editor_menu()); },
-        }),
+//        UiElement::Button(UiButton {
+//            label: Text { text: "Map Editor" },
+//            onclick: fn(label: Text) { enter_ui(create_map_editor_menu()); },
+//        }),
         UiElement::Button(UiButton {
             label: Text { text: "Misc" },
             onclick: fn(label: Text) { enter_ui(create_misc_menu()); },

@@ -18,10 +18,10 @@ fn create_archipelago_menu() -> Ui {
             onchange: fn(input: string) {},
         }),
         UiElement::Button(UiButton {
-            label: Text { text: "Disconnect" },
+            label: Text { text: "Want to disconnect? -> RESTART GAME" },
             onclick: fn(label: Text) {
-                remove_component(ARCHIPELAGO_COMPONENT);
-                leave_ui();
+                // remove_component(ARCHIPELAGO_COMPONENT);
+                // leave_ui();
             },
         }),
         UiElement::Button(UiButton {
@@ -66,9 +66,7 @@ static mut ARCHIPELAGO_COMPONENT = Component {
         let wall_jump = if ARCHIPELAGO_STATE.wall_jump >= 2 { "INF" } else if ARCHIPELAGO_STATE.wall_jump == 1 { "ONE" } else { "NO" };
         let jumppads = if ARCHIPELAGO_STATE.jumppads > 0 { "YES" } else { "NO" };
         let swim = if ARCHIPELAGO_STATE.swim > 0 { "YES" } else { "NO" };
-        return f"{text}\nArchipelago running
-
-Goal: get grass {ARCHIPELAGO_STATE.grass}/{ARCHIPELAGO_STATE.required_grass}
+        return f"Archipelago Randomizer\nGoal: get grass {ARCHIPELAGO_STATE.grass}/{ARCHIPELAGO_STATE.required_grass}
 -> go to Platform {ARCHIPELAGO_STATE.final_platform_c}-{ARCHIPELAGO_STATE.final_platform_p}
 
 Abilities
