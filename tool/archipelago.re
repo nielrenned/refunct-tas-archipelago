@@ -44,6 +44,7 @@ struct ArchipelagoState {
     final_platform_known: bool,
     triggered_platforms: Set<int>,
     highest_index_received: int,
+    has_goaled: bool,
 }
 static mut ARCHIPELAGO_STATE = ArchipelagoState {
     last_level_unlocked: 1,
@@ -58,6 +59,7 @@ static mut ARCHIPELAGO_STATE = ArchipelagoState {
     final_platform_known: false,
     triggered_platforms: Set::new(),
     highest_index_received: -1,
+    has_goaled: false,
 };
 
 static mut ARCHIPELAGO_COMPONENT = Component {
@@ -120,7 +122,10 @@ Swim: {swim}"
 
             if index.cluster_index == ARCHIPELAGO_STATE.final_platform_c - 1 && index.element_index == ARCHIPELAGO_STATE.final_platform_p - 1 && ARCHIPELAGO_STATE.grass >= ARCHIPELAGO_STATE.required_grass {
                 Tas::archipelago_goal();
-                Tas::archipelago_trigger_goal_animation();
+                if !ARCHIPELAGO_STATE.has_goaled {
+                    ARCHIPELAGO_STATE.has_goaled = true;
+                    Tas::archipelago_trigger_goal_animation();
+                }
             }
         }
     },
