@@ -24,7 +24,7 @@ The 1️⃣, 2️⃣, 3️⃣, 4️⃣ order is very important, also when you lo
 - After closing the menu (escape), you should now see "Connected to Archipelago" and much more. You're good to go!
 - Red buttons don't do anything in this randomizer.
 
-## Troubleshooting
+## AP help
 - Softlocked or wanna continue a game? (Close Refunct) and follow 1️⃣2️⃣3️⃣4️⃣.
 - Can't login? If on Windows: more information is in the log file, located at `C:\Users\yourname\AppData\Local\Temp\refunct-tas.log`
 
