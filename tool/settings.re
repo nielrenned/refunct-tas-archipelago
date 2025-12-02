@@ -230,7 +230,7 @@ impl Settings {
             log_message_duration: get_int("log_message_duration", 10000),
             archipelago_display_style: match get_string("archipelago_display_style", "Classic") {
                 "Classic" => ArchipelagoDisplayStyle::Classic,
-                "Colorful" => ArchipelagoDisplayStyle::Colorful,
+                "ColorCoded" => ArchipelagoDisplayStyle::ColorCoded,
                 pos => panic(f"unknown minimap position {pos}"),
             },
         }

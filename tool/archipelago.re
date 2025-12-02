@@ -28,16 +28,16 @@ fn create_archipelago_menu() -> Ui {
             label: Text { text: "Display Style" },
             options: List::of(
                 Text { text: "Classic" },
-                Text { text: "Colorful" }
+                Text { text: "Color Coded" }
             ),
             selected: match SETTINGS.archipelago_display_style {
                 ArchipelagoDisplayStyle::Classic => 0,
-                ArchipelagoDisplayStyle::Colorful => 1
+                ArchipelagoDisplayStyle::ColorCoded => 1
             },
             onchange: fn(index: int) {
                 match index {
                     0 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::Classic },
-                    1 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::Colorful },
+                    1 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::ColorCoded },
                     _ => panic(f"unknown display_style index {index}"),
                 }
                 SETTINGS.store();
@@ -52,7 +52,7 @@ fn create_archipelago_menu() -> Ui {
 
 enum ArchipelagoDisplayStyle {
     Classic,
-    Colorful
+    ColorCoded
 }
 
 struct ArchipelagoState {
@@ -117,7 +117,7 @@ Jumppads: {jumppads}
 Swim: {swim}"
     },
     draw_hud_always: fn() {
-        if SETTINGS.archipelago_display_style != ArchipelagoDisplayStyle::Colorful { return; }
+        if SETTINGS.archipelago_display_style != ArchipelagoDisplayStyle::ColorCoded { return; }
 
         // First, build all the lines of text
         struct TextLine { text: string, color: Color };
