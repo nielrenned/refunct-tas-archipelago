@@ -155,7 +155,7 @@ Swim: {swim}"
     draw_hud_always: fn() {},
     on_new_game: fn() {
         Tas::set_kill_z(-6000.);
-        log("[AP] on_new_game called");
+        // log("[AP] on_new_game called");
         ARCHIPELAGO_STATE.started = 1;
         ARCHIPELAGO_STATE.triggered_clusters.clear();
     },
@@ -176,7 +176,7 @@ Swim: {swim}"
         }
         if ARCHIPELAGO_STATE.started == 1 {
             archipelago_start();
-            log("Archipelago started!");
+            // log("Archipelago started!");
         }
         
         if ARCHIPELAGO_STATE.gamemode == 1 {
@@ -545,7 +545,7 @@ fn create_archipelago_gamemodes_menu() -> Ui {
         UiElement::Button(UiButton {
             label: Text { text: "Move rando (main)" },
             onclick: fn(label: Text) {
-                log("Set gamemode to main game");
+                // log("Set gamemode to main game");
                 archipelago_init(0);
                 leave_ui();
             },
@@ -560,10 +560,10 @@ fn create_archipelago_gamemodes_menu() -> Ui {
             } },
             onclick: fn(label: Text) {
                 if !ARCHIPELAGO_STATE.unlock_vanilla_minigame {
-                    log("Vanilla game gamemode is locked!");
+                    // log("Vanilla game gamemode is locked!");
                     return;
                 }
-                log("Set gamemode to OG game");
+                // log("Set gamemode to OG game");
                 archipelago_init(1);
                 leave_ui();
             },
@@ -571,7 +571,7 @@ fn create_archipelago_gamemodes_menu() -> Ui {
 //        UiElement::Button(UiButton {
 //            label: Text { text: "Original randomizer" },
 //            onclick: fn(label: Text) {
-//                log("Set gamemode to OG game");
+//                // log("Set gamemode to OG game");
 //                archipelago_init(2);
 //                leave_ui();
 //            },
@@ -586,10 +586,10 @@ fn create_archipelago_gamemodes_menu() -> Ui {
             } },
             onclick: fn(label: Text) {
                 if !ARCHIPELAGO_STATE.unlock_seeker_minigame {
-                    log("Seeker gamemode is locked!");
+                    // log("Seeker gamemode is locked!");
                     return;
                 }
-                log("Set gamemode to Seeker");
+                // log("Set gamemode to Seeker");
                 archipelago_init(3);
                 leave_ui();
             },
