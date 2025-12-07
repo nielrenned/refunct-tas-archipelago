@@ -23,10 +23,12 @@ Maybe [this](https://github.com/spinerak/refunct-tas-archipelago/blob/master/AP_
 - After closing the menu (escape), you should now see "Archipelago" and the request to start a new game. Open the Refunct menu (escape) and press New Game. Your game will start and you're good to go!
 
 ## Other stuff
-- Buttons and platforms underneath buttons are not checks. (Red) buttons don't do anything.
+- Want to switch to a different gamemode (minigame or main game), press `m`, go to Archipelago and press "Change Gamemode". You'll have to New Game to start it.
+- Softlocked? Press New Game, your progress is saved.
+- Buttons and platforms underneath buttons are not checks in the main game. (Red) buttons don't do anything.
 - Universal Tracker can help you to figure out which platforms are accessible. The mini-map should help!
-- You should be able to quit a game and continue it later, just follow the steps again. Make sure to "New game" before logging into AP.
-- The final cluster in the game won't appear and will stay underwater for now (the final button is weird).
+- You should be able to quit a game and continue it later, just follow the steps again.
+- The final cluster in the game won't appear and will stay underwater in the main game (the final button is weird).
 
 
 # Below text is the text of the original read me for the Refunct TaS Tool
