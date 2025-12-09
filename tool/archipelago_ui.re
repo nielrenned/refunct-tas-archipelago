@@ -289,20 +289,22 @@ fn archipelago_hud_text(text: string) -> string {
 }
 
 fn archipelago_hud_color_coded() {
-    let viewport = Tas::get_viewport_size();
-    let w = viewport.width.to_float();
-    let h = viewport.height.to_float();
+    if SETTINGS.archipelago_display_style != ArchipelagoDisplayStyle::Off {
+        let viewport = Tas::get_viewport_size();
+        let w = viewport.width.to_float();
+        let h = viewport.height.to_float();
 
-    // For now, always draw the platform display
-    let player_loc = Tas::get_location();
-    let player_vel = Tas::get_velocity();
-    let platform_text = match ARCHIPELAGO_STATE.last_platform_c {
-        Option::Some(cluster) => {
-            let platform = ARCHIPELAGO_STATE.last_platform_p.unwrap();
-            f"Last Platform: {cluster}-{platform}"
-        },
-        Option::None => "Last Platform: ??-??"
-    };
+        // For now, always draw the platform display
+        let player_loc = Tas::get_location();
+        let player_vel = Tas::get_velocity();
+        let platform_text = match ARCHIPELAGO_STATE.last_platform_c {
+            Option::Some(cluster) => {
+                let platform = ARCHIPELAGO_STATE.last_platform_p.unwrap();
+                f"Last Platform: {cluster}-{platform}"
+            },
+            Option::None => "Last Platform: ??-??"
+        };
+    }
 
     ap_draw_colorful_text(
         List::of(ColorfulText { text: platform_text, color: COLOR_WHITE }), AP_COLOR_GRAY_BG,
