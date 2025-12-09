@@ -21,6 +21,8 @@ struct ArchipelagoState {
     unlock_seeker_minigame: bool,
     seeker_pressed_platforms: List<int>,
     seeker_extra_pressed: List<int>,
+    last_platform_c: Option<int>,
+    last_platform_p: Option<int>,
 }
 
 fn fresh_archipelago_state() -> ArchipelagoState {
@@ -47,6 +49,8 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         unlock_seeker_minigame: false,
         seeker_pressed_platforms: List::new(),
         seeker_extra_pressed: List::new(),
+        last_platform_c: Option::None,
+        last_platform_p: Option::None,
     }
 }
 
@@ -81,6 +85,11 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     },
     on_reset: fn(old: int, new: int) {},
     on_element_pressed: fn(index: ElementIndex) {
+        if index.element_type == ElementType::Platform {
+            ARCHIPELAGO_STATE.last_platform_c = Option::Some(index.cluster_index + 1);
+            ARCHIPELAGO_STATE.last_platform_p = Option::Some(index.element_index + 1);
+        }
+
         if ARCHIPELAGO_STATE.started == 0 {
             return;
         }

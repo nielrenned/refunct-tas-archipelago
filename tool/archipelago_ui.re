@@ -1,4 +1,5 @@
 enum ArchipelagoDisplayStyle {
+    Off,
     Classic,
     ColorCoded
 }
@@ -8,11 +9,18 @@ struct ColorfulText {
     color: Color
 }
 
-static AP_COLOR_RED    = Color { red: 0.600, green: 0.160, blue: 0.227, alpha: 1. };
-static AP_COLOR_CYAN   = Color { red: 0.000, green: 0.627, blue: 0.698, alpha: 1. };
-static AP_COLOR_GREEN  = Color { red: 0.231, green: 0.600, blue: 0.165, alpha: 1. };
-static AP_COLOR_YELLOW = Color { red: 0.600, green: 0.533, blue: 0.165, alpha: 1. };
-static AP_COLOR_BG     = Color { red: 0., green: 0., blue: 0., alpha: 0.6 };
+enum Anchor {
+    TopLeft,    TopCenter,    TopRight,
+    CenterLeft, Center,       CenterRight,
+    BottomLeft, BottomCenter, BottomRight
+}
+
+static AP_COLOR_RED     = Color { red: 0.600, green: 0.160, blue: 0.227, alpha: 1. };
+static AP_COLOR_CYAN    = Color { red: 0.000, green: 0.627, blue: 0.698, alpha: 1. };
+static AP_COLOR_GREEN   = Color { red: 0.231, green: 0.600, blue: 0.165, alpha: 1. };
+static AP_COLOR_YELLOW  = Color { red: 0.600, green: 0.533, blue: 0.165, alpha: 1. };
+static AP_COLOR_GRAY_BG = Color { red: 0., green: 0., blue: 0., alpha: 0.6 };
+static AP_COLOR_CLEAR   = Color { red: 0., green: 0., blue: 0., alpha: 0.0 };
 
 fn create_archipelago_menu() -> Ui {
     let elements = List::new();
@@ -52,17 +60,20 @@ fn create_archipelago_menu() -> Ui {
         elements.push(UiElement::Chooser(Chooser {
             label: Text { text: "Display Style" },
             options: List::of(
+                Text { text: "Off" },
                 Text { text: "Classic (shown on main menu)" },
                 Text { text: "Color Coded" }
             ),
             selected: match SETTINGS.archipelago_display_style {
-                ArchipelagoDisplayStyle::Classic => 0,
-                ArchipelagoDisplayStyle::ColorCoded => 1
+                ArchipelagoDisplayStyle::Off => 0,
+                ArchipelagoDisplayStyle::Classic => 1,
+                ArchipelagoDisplayStyle::ColorCoded => 2
             },
             onchange: fn(index: int) {
                 match index {
-                    0 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::Classic },
-                    1 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::ColorCoded },
+                    0 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::Off },
+                    1 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::Classic },
+                    2 => { SETTINGS.archipelago_display_style = ArchipelagoDisplayStyle::ColorCoded },
                     _ => panic(f"unknown display_style index {index}"),
                 }
                 SETTINGS.store();
@@ -81,26 +92,26 @@ fn create_archipelago_menu() -> Ui {
                 Text { text: "Center Left" }
             ),
             selected: match SETTINGS.archipelago_display_position {
-                MinimapPosition::TopLeft => 0,
-                MinimapPosition::TopCenter => 1,
-                MinimapPosition::TopRight => 2,
-                MinimapPosition::CenterRight => 3,
-                MinimapPosition::BottomRight => 4,
-                MinimapPosition::BottomCenter => 5,
-                MinimapPosition::BottomLeft => 6,
-                MinimapPosition::CenterLeft => 7,
+                Anchor::TopLeft => 0,
+                Anchor::TopCenter => 1,
+                Anchor::TopRight => 2,
+                Anchor::CenterRight => 3,
+                Anchor::BottomRight => 4,
+                Anchor::BottomCenter => 5,
+                Anchor::BottomLeft => 6,
+                Anchor::CenterLeft => 7,
                 pos => panic(f"unknown archipelago display position: {pos}"),
             },
             onchange: fn(index: int) {
                 match index {
-                    0 => { SETTINGS.archipelago_display_position = MinimapPosition::TopLeft; },
-                    1 => { SETTINGS.archipelago_display_position = MinimapPosition::TopCenter; },
-                    2 => { SETTINGS.archipelago_display_position = MinimapPosition::TopRight; },
-                    3 => { SETTINGS.archipelago_display_position = MinimapPosition::CenterRight; },
-                    4 => { SETTINGS.archipelago_display_position = MinimapPosition::BottomRight; },
-                    5 => { SETTINGS.archipelago_display_position = MinimapPosition::BottomCenter; },
-                    6 => { SETTINGS.archipelago_display_position = MinimapPosition::BottomLeft; },
-                    7 => { SETTINGS.archipelago_display_position = MinimapPosition::CenterLeft; },
+                    0 => { SETTINGS.archipelago_display_position = Anchor::TopLeft; },
+                    1 => { SETTINGS.archipelago_display_position = Anchor::TopCenter; },
+                    2 => { SETTINGS.archipelago_display_position = Anchor::TopRight; },
+                    3 => { SETTINGS.archipelago_display_position = Anchor::CenterRight; },
+                    4 => { SETTINGS.archipelago_display_position = Anchor::BottomRight; },
+                    5 => { SETTINGS.archipelago_display_position = Anchor::BottomCenter; },
+                    6 => { SETTINGS.archipelago_display_position = Anchor::BottomLeft; },
+                    7 => { SETTINGS.archipelago_display_position = Anchor::CenterLeft; },
                     pos => panic(f"unknown archipelago display position: {pos}"),
                 }
                 SETTINGS.store();
@@ -188,29 +199,29 @@ fn create_archipelago_gamemodes_menu() -> Ui {
 fn get_status_text_lines() -> List<ColorfulText> {
     match ARCHIPELAGO_STATE.started {
         0 => List::of(
-            ColorfulText { text: "Archipelago Randomizer", color: COLOR_WHITE },
+            ColorfulText { text: "Archipelago Randomizer\n", color: COLOR_WHITE },
             ColorfulText { text: "Press new game (in Refunct menu).", color: AP_COLOR_CYAN },
         ),
         1 => List::of(
-            ColorfulText { text: "Archipelago Randomizer", color: COLOR_WHITE },
+            ColorfulText { text: "Archipelago Randomizer\n", color: COLOR_WHITE },
             ColorfulText { text: "Touch a platform to start!", color: AP_COLOR_CYAN },
         ),
         _ => match ARCHIPELAGO_STATE.gamemode {
             0 => get_move_rando_status_lines(),
             1 => List::of(
-                ColorfulText { text: "Archipelago - Vanilla", color: COLOR_WHITE },
+                ColorfulText { text: "Archipelago - Vanilla\n", color: COLOR_WHITE },
                 ColorfulText { text: "Goal: Press the buttons!", color: AP_COLOR_CYAN },
             ),
             // 2 => List::of(
-            //     ColorfulText { text: "Archipelago - Original Rando", color: COLOR_WHITE },
+            //     ColorfulText { text: "Archipelago - Original Rando\n", color: COLOR_WHITE },
             //     ColorfulText { text: "Touch a platform to start!", color: AP_COLOR_CYAN },
             // ),
             3 => List::of(
-                ColorfulText { text: "Archipelago - Seeker", color: COLOR_WHITE },
+                ColorfulText { text: "Archipelago - Seeker\n", color: COLOR_WHITE },
                 ColorfulText { text: "Goal: Find the empty platforms!", color: AP_COLOR_CYAN },
             ),
             _ => List::of(
-                ColorfulText { text: "Archipelago", color: COLOR_WHITE },
+                ColorfulText { text: "Archipelago\n", color: COLOR_WHITE },
                 ColorfulText { text: "Unknown Gamemode", color: AP_COLOR_RED },
             ),
         }
@@ -228,38 +239,35 @@ fn get_move_rando_status_lines() -> List<ColorfulText> {
     let seeker_state = if ARCHIPELAGO_STATE.unlock_seeker_minigame { "YES" } else { "NO" };
 
     List::of(
-        ColorfulText { text: "Archipelago - Move Rando", color: COLOR_WHITE },
-        ColorfulText { text: "Goals", color: COLOR_WHITE },
+        ColorfulText { text: "Archipelago - Move Rando\nGoals\n", color: COLOR_WHITE },
         ColorfulText {
-            text:  f"Get Grass: {ARCHIPELAGO_STATE.grass}/{ARCHIPELAGO_STATE.required_grass}",
+            text:  f"Get Grass: {ARCHIPELAGO_STATE.grass}/{ARCHIPELAGO_STATE.required_grass}\n",
             color: if ARCHIPELAGO_STATE.grass >= ARCHIPELAGO_STATE.required_grass { AP_COLOR_GREEN } else { AP_COLOR_CYAN }
         },
         ColorfulText {
-            text:  f"Go to Platform {final_platform}",
+            text:  f"Go to Platform {final_platform}\n\n",
             color: if ARCHIPELAGO_STATE.has_goaled { AP_COLOR_GREEN } else { AP_COLOR_CYAN }
         },
-        ColorfulText { text: "", color: COLOR_WHITE },
-        ColorfulText { text: "Abilities", color: COLOR_WHITE },
+        ColorfulText { text: "Abilities\n", color: COLOR_WHITE },
         ColorfulText {
-            text:  f"Ledge Grab: { ledge_grab_state }",
+            text:  f"Ledge Grab: { ledge_grab_state }\n",
             color: if ARCHIPELAGO_STATE.ledge_grab > 0 { AP_COLOR_GREEN } else { AP_COLOR_RED }
         },
         ColorfulText {
-            text:  f"Wall Jump:  { wall_jump_state }",
+            text:  f"Wall Jump:  { wall_jump_state }\n",
             color: if ARCHIPELAGO_STATE.wall_jump >= 2 { AP_COLOR_GREEN } else if ARCHIPELAGO_STATE.wall_jump == 1 { AP_COLOR_YELLOW } else { AP_COLOR_RED }
         },
         ColorfulText {
-            text:  f"Jump Pads:  { jump_pad_state }",
+            text:  f"Jump Pads:  { jump_pad_state }\n",
             color: if ARCHIPELAGO_STATE.jumppads > 0 { AP_COLOR_GREEN } else { AP_COLOR_RED }
         },
         ColorfulText {
-            text:  f"Swim:       { swim_state }",
+            text:  f"Swim:       { swim_state }\n\n",
             color: if ARCHIPELAGO_STATE.swim > 0 { AP_COLOR_GREEN } else { AP_COLOR_RED }
         },
-        ColorfulText { text: "", color: COLOR_WHITE },
-        ColorfulText { text: "Minigames Unlocked", color: COLOR_WHITE },
+        ColorfulText { text: "Minigames Unlocked\n", color: COLOR_WHITE },
         ColorfulText {
-            text:  f"Vanilla: {vanilla_state}",
+            text:  f"Vanilla: {vanilla_state}\n",
             color: if ARCHIPELAGO_STATE.unlock_vanilla_minigame { AP_COLOR_GREEN } else { AP_COLOR_RED }
         },
         ColorfulText {
@@ -275,85 +283,122 @@ fn archipelago_hud_text(text: string) -> string {
     let mut hud_text = "";
     for line in get_status_text_lines() {
         let text = line.text;
-        hud_text = f"{hud_text}{text}\n";
+        hud_text = f"{hud_text}{text}";
     }
     hud_text
 }
 
 fn archipelago_hud_color_coded() {
-    if SETTINGS.archipelago_display_style != ArchipelagoDisplayStyle::ColorCoded { return; }
-
-    let text_lines = get_status_text_lines();
-
-    // Then, draw the lines
-    let mut text_width = 0.0;
-    let mut line_height = 0.0;
-    for text_line in text_lines {
-        let text_size = Tas::get_text_size(text_line.text, SETTINGS.ui_scale);
-        text_width = float::max(text_size.width, text_width);
-        line_height = text_size.height;
-    }
-    let text_height = text_lines.len().to_float() * line_height;
-
     let viewport = Tas::get_viewport_size();
-    let mut title_text_x = 0.0;
-    let mut title_text_y = 0.0;
+    let w = viewport.width.to_float();
+    let h = viewport.height.to_float();
 
-    match SETTINGS.archipelago_display_position {
-        MinimapPosition::TopLeft => {
-            title_text_x = 5.0;
-            title_text_y = 0.0;
-
-            // Make sure we don't overlap with the menu
-            match UI_STACK.last() {
-                Option::Some(ui) => {
-                    let elements = ui.elements;
-                    title_text_y += line_height * (elements.len().to_float() + 1.5);
-                },
-                Option::None => (),
-            }
+    // For now, always draw the platform display
+    let player_loc = Tas::get_location();
+    let player_vel = Tas::get_velocity();
+    let platform_text = match ARCHIPELAGO_STATE.last_platform_c {
+        Option::Some(cluster) => {
+            let platform = ARCHIPELAGO_STATE.last_platform_p.unwrap();
+            f"Last Platform: {cluster}-{platform}"
         },
-        MinimapPosition::TopCenter => {
-            title_text_x = (viewport.width.to_float() - text_width)/2.0;
-            title_text_y = 5.0;
-        },
-        MinimapPosition::TopRight => {
-            title_text_x = viewport.width.to_float() - text_width - 5.0;
-            title_text_y = 5.0;
-        },
-        MinimapPosition::CenterRight => {
-            title_text_x = viewport.width.to_float() - text_width - 5.0;
-            title_text_y = (viewport.height.to_float() - text_height)/2.0;
-        },
-        MinimapPosition::BottomRight => {
-            title_text_x = viewport.width.to_float() - text_width - 5.0;
-            title_text_y = viewport.height.to_float() - text_height - 5.0;
-        },
-        MinimapPosition::BottomCenter => {
-            title_text_x = (viewport.width.to_float() - text_width)/2.0;
-            title_text_y = viewport.height.to_float() - text_height - 5.0;
-        },
-        MinimapPosition::BottomLeft => {
-            title_text_x = 5.0;
-            title_text_y = viewport.height.to_float() - text_height - 5.0;
-        },
-        MinimapPosition::CenterLeft => {
-            title_text_x = 5.0;
-            title_text_y = (viewport.height.to_float() - text_height)/2.0;
-        },
-        pos => panic(f"unknown/invalid archipelago display position: {pos}"),
+        Option::None => "Last Platform: ??-??"
     };
 
-    // Draw background rectangle for visibility
-    Tas::draw_rect(AP_COLOR_BG, title_text_x - 5.0, title_text_y - 5.0, text_width + 10.0, text_height + 10.0);
+    ap_draw_colorful_text(
+        List::of(ColorfulText { text: platform_text, color: COLOR_WHITE }), AP_COLOR_GRAY_BG,
+        viewport.width.to_float() / 2.0, viewport.height.to_float(), Anchor::BottomCenter, 5.0);
 
-    let mut i = 0.0;
-    for text_line in text_lines {
-        Tas::draw_text(DrawText {
-            text: text_line.text, color: text_line.color,
-            x: title_text_x, y: title_text_y + i*line_height,
-            scale: SETTINGS.ui_scale, scale_position: false
-        });
-        i += 1.0;
+    if SETTINGS.archipelago_display_style != ArchipelagoDisplayStyle::ColorCoded { return; }
+
+    let lines = get_status_text_lines();
+    let anchor = SETTINGS.archipelago_display_position;
+
+    match SETTINGS.archipelago_display_position {
+        Anchor::TopLeft => {
+            // Make sure we don't overlap with the menu
+            let text_y = match UI_STACK.last() {
+                Option::Some(ui) => {
+                    let size = Tas::get_text_size("x", SETTINGS.ui_scale);
+                    let line_height = size.height;
+
+                    let elements = ui.elements;
+                    line_height * (elements.len().to_float() + 1.5)
+                },
+                Option::None => 0.0,
+            };
+
+            ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, 5.0, text_y, anchor, 5.0);
+        },
+        Anchor::TopCenter    => { ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, w/2.0, 5.0, anchor, 5.0); },
+        Anchor::TopRight     => { ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, w, 5.0, anchor, 5.0); },
+        Anchor::CenterRight  => { ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, w, h/2.0, anchor, 5.0); },
+        Anchor::BottomRight  => { ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, w, h, anchor, 5.0); },
+        Anchor::BottomCenter => { ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, w/2.0, h, anchor, 5.0); },
+        Anchor::BottomLeft   => { ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, 5.0, h, anchor, 5.0); },
+        Anchor::CenterLeft   => { ap_draw_colorful_text(lines, AP_COLOR_GRAY_BG, 5.0, h/2.0, anchor, 5.0); },
+
+        pos => panic(f"unknown/invalid archipelago display position: {pos}"),
+    };
+}
+
+fn ap_draw_colorful_text(text_list: List<ColorfulText>, background_color: Color, x_pos: float, y_pos: float, anchor: Anchor, padding: float) {
+    // Pre-process the lines
+    let mut all_text = "";
+    for text in text_list {
+        all_text = f"{all_text}{text.text}";
+    }
+    let lines = all_text.split("\n");
+
+    let mut text_width = 0.0;
+    for line in lines {
+        let text_size = Tas::get_text_size(line, SETTINGS.ui_scale);
+        text_width = float::max(text_size.width, text_width);
+    }
+
+    let _size = Tas::get_text_size("TEST", SETTINGS.ui_scale);
+    let line_height = _size.height;
+    let text_height = line_height * lines.len().to_float();
+
+    let mut x_start = 0.0;
+    let mut y_start = 0.0;
+    match anchor {
+        Anchor::TopLeft      => { x_start = x_pos;                  y_start = y_pos; },
+        Anchor::TopCenter    => { x_start = x_pos - text_width/2.0; y_start = y_pos; },
+        Anchor::TopRight     => { x_start = x_pos - text_width;     y_start = y_pos; },
+        Anchor::CenterLeft   => { x_start = x_pos;                  y_start = y_pos - text_height/2.0; },
+        Anchor::Center       => { x_start = x_pos - text_width/2.0; y_start = y_pos - text_height/2.0; },
+        Anchor::CenterRight  => { x_start = x_pos - text_width;     y_start = y_pos - text_height/2.0; },
+        Anchor::BottomLeft   => { x_start = x_pos;                  y_start = y_pos - text_height; },
+        Anchor::BottomCenter => { x_start = x_pos - text_width/2.0; y_start = y_pos - text_height; },
+        Anchor::BottomRight  => { x_start = x_pos - text_width;     y_start = y_pos - text_height; },
+    };
+
+    Tas::draw_rect(background_color,
+        x_start - padding, y_start - padding,
+        text_width + padding*2.0, text_height + padding*2.0);
+
+    let mut x = x_start;
+    let mut y = y_start;
+    for text in text_list {
+        let lines = text.text.split("\n");
+        let mut i = 0;
+        while i < lines.len() {
+            let line = lines.get(i).unwrap();
+            if line != "" {
+                Tas::draw_text(DrawText {
+                    text: line, color: text.color,
+                    x: x, y: y, scale: SETTINGS.ui_scale, scale_position: false
+                });
+                let text_size = Tas::get_text_size(line, SETTINGS.ui_scale);
+                x += text_size.width;
+            }
+
+            i += 1;
+            if i != lines.len() {
+                // The last line didn't end in a newline character
+                x = x_start;
+                y += line_height;
+            }
+        }
     }
 }
