@@ -304,11 +304,11 @@ fn archipelago_hud_color_coded() {
             },
             Option::None => "Last Platform: ??-??"
         };
-    }
 
-    ap_draw_colorful_text(
-        List::of(ColorfulText { text: platform_text, color: COLOR_WHITE }), AP_COLOR_GRAY_BG,
-        viewport.width.to_float() / 2.0, viewport.height.to_float(), Anchor::BottomCenter, 5.0);
+        ap_draw_colorful_text(
+            List::of(ColorfulText { text: platform_text, color: COLOR_WHITE }), AP_COLOR_GRAY_BG,
+            viewport.width.to_float() / 2.0, viewport.height.to_float(), Anchor::BottomCenter, 5.0);
+    }
 
     if SETTINGS.archipelago_display_style != ArchipelagoDisplayStyle::ColorCoded { return; }
 
