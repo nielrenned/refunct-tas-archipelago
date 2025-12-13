@@ -13,6 +13,7 @@ cd ..
 echo Copying files
 copy rtil\target\i686-pc-windows-msvc\release\rtil.dll build\practice-windows
 copy tool\target\i686-pc-windows-msvc\debug\refunct-tas.exe build\practice-windows
+copy tool\debug.bat build\practice-windows
 copy tool\main.re build\practice-windows
 copy tool\prelude.re build\practice-windows
 copy tool\component.re build\practice-windows
@@ -23,7 +24,8 @@ copy tool\randomizer.re build\practice-windows
 copy tool\teleport.re build\practice-windows
 copy tool\ui.re build\practice-windows
 copy tool\multiplayer.re build\practice-windows
-copy tool\archipelago.re build\practice-windows
+copy tool\archipelago_ui.re build\practice-windows
+copy tool\archipelago_gameplay.re build\practice-windows
 copy tool\tas.re build\practice-windows
 copy tool\windshieldwipers.re build\practice-windows
 copy tool\settings.re build\practice-windows
@@ -46,7 +48,8 @@ call :convert randomizer.re
 call :convert teleport.re
 call :convert ui.re
 call :convert multiplayer.re
-call :convert archipelago.re
+call :convert archipelago_ui.re
+call :convert archipelago_gameplay.re
 call :convert tas.re
 call :convert windshieldwipers.re
 call :convert settings.re
