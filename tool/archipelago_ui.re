@@ -289,10 +289,10 @@ fn archipelago_hud_text(text: string) -> string {
 }
 
 fn archipelago_hud_color_coded() {
+    let viewport = Tas::get_viewport_size();
+    let w = viewport.width.to_float();
+    let h = viewport.height.to_float();
     if SETTINGS.archipelago_display_style != ArchipelagoDisplayStyle::Off {
-        let viewport = Tas::get_viewport_size();
-        let w = viewport.width.to_float();
-        let h = viewport.height.to_float();
 
         // For now, always draw the platform display
         let player_loc = Tas::get_location();
