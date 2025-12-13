@@ -96,6 +96,7 @@ You can find all code of the practice functionality in the [tool directory](tool
   The tool couldn't connect to the game.
   Please make sure that Refunct is started before running the tool.
   On Linux also make sure that you configured `LD_PRELOAD` correctly.
+  *If you're still having problems, try updating your graphics drivers (yes this really solves some problems).*
 * **thread 'main' panicked at 'Cannot get pid of Refunct: Error { kind: NotFound, message: "program not found" }'**:
   WMIC (Windows Management Instrumentation Command-Line) either doesn't exist or its directory isn't in PATH.
   To put it in path, run `control sysdm.cpl,,3` in Run (WIN+R) -> Environment Variables -> [Under "User variables for (user)] -> Double click "Path". Add this entry to it: `%SystemRoot%\System32\Wbem`. Start the tool, and it should work.
