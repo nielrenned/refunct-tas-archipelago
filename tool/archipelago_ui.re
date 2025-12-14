@@ -422,7 +422,7 @@ fn get_move_rando_status_lines() -> List<ColorfulText> {
     let vanilla_state = if ARCHIPELAGO_STATE.unlock_vanilla_minigame { "YES" } else { "NO" };
     let seeker_state = if ARCHIPELAGO_STATE.unlock_seeker_minigame { "YES" } else { "NO" };
 
-    List::of(
+    let lines = List::of(
         ColorfulText { text: "Archipelago - Move Rando\nGoals\n", color: COLOR_WHITE },
         ColorfulText {
             text:  f"Get Grass: {ARCHIPELAGO_STATE.grass}/{ARCHIPELAGO_STATE.required_grass}\n",
@@ -446,19 +446,32 @@ fn get_move_rando_status_lines() -> List<ColorfulText> {
             color: if ARCHIPELAGO_STATE.jumppads > 0 { AP_COLOR_GREEN } else { AP_COLOR_RED }
         },
         ColorfulText {
-            text:  f"Swim:       { swim_state }\n\n",
+            text:  f"Swim:       { swim_state }",
             color: if ARCHIPELAGO_STATE.swim > 0 { AP_COLOR_GREEN } else { AP_COLOR_RED }
         },
-        ColorfulText { text: "Minigames Unlocked\n", color: COLOR_WHITE },
-        ColorfulText {
-            text:  f"Vanilla: {vanilla_state}\n",
-            color: if ARCHIPELAGO_STATE.unlock_vanilla_minigame { AP_COLOR_GREEN } else { AP_COLOR_RED }
-        },
-        ColorfulText {
-            text:  f"Seeker:  {seeker_state}",
-            color: if ARCHIPELAGO_STATE.unlock_seeker_minigame { AP_COLOR_GREEN } else { AP_COLOR_RED }
-        },
-    )
+    );
+    let mut added_minigame_header = false;
+    if ARCHIPELAGO_STATE.unlock_vanilla_minigame && !ARCHIPELAGO_STATE.done_vanilla_minigame {
+        if !added_minigame_header {
+            lines.push(ColorfulText { text: "\n\nMinigames with Checks", color: COLOR_WHITE });
+        }
+        lines.push(ColorfulText {
+            text:  "\nVanilla",
+            color: AP_COLOR_GREEN
+        });
+        added_minigame_header = true;
+    }
+    if ARCHIPELAGO_STATE.unlock_seeker_minigame && !ARCHIPELAGO_STATE.done_seeker_minigame {
+        if !added_minigame_header {
+            lines.push(ColorfulText { text: "\n\nMinigames with Checks", color: COLOR_WHITE });
+        }
+        lines.push(ColorfulText {
+            text:  "\nSeeker",
+            color: AP_COLOR_GREEN
+        });
+        added_minigame_header = true;
+    }
+    lines
 }
 
 fn archipelago_hud_text(text: string) -> string {
