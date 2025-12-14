@@ -125,7 +125,7 @@ static mut ARCHIPELAGO_COMPONENT = Component {
 
         if index.element_type == ElementType::Platform {
 
-            log(f"$Platform {index.cluster_index + 1}-{index.element_index + 1}");
+            // log(f"$Platform {index.cluster_index + 1}-{index.element_index + 1}");
             Tas::archipelago_send_check(10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
             ARCHIPELAGO_STATE.stepped_on_platforms.push(10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
 
