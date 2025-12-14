@@ -498,6 +498,13 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                     log!("RoomUpdate message");
                     let msg = format!("Archipelago ServerMessage::RoomUpdate: {:?}", info);
                     log!("{}", msg);
+                    // example output: Archipelago ServerMessage::RoomUpdate: RoomUpdate { version: None, tags: None, password_required: false, permissions: None, hint_cost: None, location_check_points: None, games: None, datapackage_versions: None, datapackage_checksums: None, seed_name: None, time: None, hint_points: Some(3), players: None, checked_locations: Some([10010104]), missing_locations: None }
+                    for loc in info.checked_locations.unwrap_or_default() {
+                        let value: i64 = loc;
+                        archipelago_checked_location(vm,
+                            value as usize,
+                        )?;
+                    }
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::Print(text))) => {
                     log!("Print message");

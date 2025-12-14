@@ -19,10 +19,13 @@ struct ArchipelagoState {
     gamemode: int,
     unlock_vanilla_minigame: bool,
     unlock_seeker_minigame: bool,
+    done_vanilla_minigame: bool,
+    done_seeker_minigame: bool,
     seeker_pressed_platforms: List<int>,
     seeker_extra_pressed: List<int>,
     last_platform_c: Option<int>,
     last_platform_p: Option<int>,
+    checked_locations: List<int>,
 }
 
 fn fresh_archipelago_state() -> ArchipelagoState {
@@ -47,10 +50,13 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         gamemode: 0,
         unlock_vanilla_minigame: false,
         unlock_seeker_minigame: false,
+        done_vanilla_minigame: false,
+        done_seeker_minigame: false,
         seeker_pressed_platforms: List::new(),
         seeker_extra_pressed: List::new(),
         last_platform_c: Option::None,
         last_platform_p: Option::None,
+        checked_locations: List::new(),
     }
 }
 
@@ -127,7 +133,6 @@ static mut ARCHIPELAGO_COMPONENT = Component {
 
             log(f"$Platform {index.cluster_index + 1}-{index.element_index + 1}");
             Tas::archipelago_send_check(10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
-            ARCHIPELAGO_STATE.stepped_on_platforms.push(10010000 + (index.cluster_index + 1) * 100 + index.element_index + 1);
 
             if index.cluster_index == ARCHIPELAGO_STATE.final_platform_c - 1 && index.element_index == ARCHIPELAGO_STATE.final_platform_p - 1 && ARCHIPELAGO_STATE.grass >= ARCHIPELAGO_STATE.required_grass {
                 Tas::archipelago_goal();
@@ -407,11 +412,40 @@ fn archipelago_seeker_start(){
 }
 
 fn archipelago_checked_location(id: int){
+    if ARCHIPELAGO_STATE.checked_locations.contains(id) {
+        return;
+    }
+    ARCHIPELAGO_STATE.checked_locations.push(id);
     if id >= 10010000 && id < 10020000 {
-        if ARCHIPELAGO_STATE.stepped_on_platforms.contains(id) {
-            return;
-        }
         ARCHIPELAGO_STATE.stepped_on_platforms.push(id);
+    }
+    let vanilla_locations = List::of(10020101, 10020201, 10020301, 10020401, 10020501, 10020601, 10020701, 10020702, 10020801, 10020901, 10021001, 10021002, 10021101, 10021201, 10021301, 10021401, 10021501, 10021601, 10021701, 10021801, 10021802, 10021901, 10022001, 10022101, 10022201, 10022301, 10022401, 10022501, 10022601, 10022602, 10022603, 10022701, 10022801, 10022802, 10022901, 10023001, 10023101);
+    if vanilla_locations.contains(id) {
+        let mut all_pressed = true;
+        for lid in vanilla_locations {
+            if !ARCHIPELAGO_STATE.checked_locations.contains(lid) {
+                all_pressed = false;
+                break;
+            }
+        }
+        if all_pressed {
+            ARCHIPELAGO_STATE.done_vanilla_minigame = true;
+            log("Completed Vanilla Minigame!");
+        }
+    }
+    let seeker_locations = List::of(10030001, 10030002, 10030003, 10030004, 10030005, 10030006, 10030007, 10030008, 10030009, 10030010);
+    if seeker_locations.contains(id) {
+        let mut all_pressed = true;
+        for lid in seeker_locations {
+            if !ARCHIPELAGO_STATE.checked_locations.contains(lid) {
+                all_pressed = false;
+                break;
+            }
+        }
+        if all_pressed {
+            ARCHIPELAGO_STATE.done_seeker_minigame = true;
+            log("Completed Seeker Minigame!");
+        }
     }
 }
 
