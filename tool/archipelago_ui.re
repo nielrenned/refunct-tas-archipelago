@@ -114,7 +114,9 @@ fn create_archipelago_connection_details_menu() -> Ui {
             label: Text { text: "Disconnect" },
             onclick: fn(label: Text) {
                 Tas::archipelago_disconnect();
-                leave_ui();
+                remove_component(ARCHIPELAGO_COMPONENT);
+                ARCHIPELAGO_STATE = fresh_archipelago_state();
+                leave_ui(); leave_ui();
             },
         }));
     } else {
