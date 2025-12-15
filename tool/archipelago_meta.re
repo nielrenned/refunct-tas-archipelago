@@ -137,10 +137,8 @@ fn get_location_name_for_player_by_id(player_id: int, location_id: int) -> strin
 }
 
 // TODO:
-// - Parse some types of messages separately (namely those with a NetworkItem)
-//   - Add field to ReboJSONMessage to support this
-//   - This will allow filtering messages only relevant to you, etc.
-// - Add Message filtering option to menu (List::of(All, OnlyYou, OnlyProgressive, OnlyYouAndProgressive)?)
+// - Add message filtering and corresponding menu option
+//   - List::of(All, OnlyYou, OnlyProgressive, OnlyYouAndProgressive)?
 // - Add prettier logging and a menu option to keep logs for a certain amount of time
 //   - Options: Forever, Duration, Off; Duration is controlled by a float setting (10s default?)
 //   - Another option to control maximum number of messages shown?
@@ -149,10 +147,10 @@ fn get_location_name_for_player_by_id(player_id: int, location_id: int) -> strin
 //     - Annoyingly, you can leave the menu open. We should maybe fix this?
 // - Delete lots of the old logging (no longer needed)
 
-fn archipelago_print_json_message(json_message: ReboJSONMessage) {
+fn archipelago_print_json_message(json_message: ReboPrintJSONMessage) {
     let mut message = "";
-    for part in json_message.parts {
-        let text = match part.message_type {
+    for part in json_message.data {
+        let text = match part._type {
             "player_id" => {
                 let message_text = part.text.unwrap();
                 match message_text.parse_int() {
