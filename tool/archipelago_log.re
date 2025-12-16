@@ -37,9 +37,9 @@ static mut ARCHIPELAGO_ROOM_INFO = ArchipelagoRoomInfo {
     games: Map::new()
 };
 
-static UNKNOWN_PLAYER = "(someone?)";
-static UNKNOWN_ITEM = "(something?)";
-static UNKNOWN_LOCATION = "(somewhere?)";
+static UNKNOWN_PLAYER = "someone";
+static UNKNOWN_ITEM = "something";
+static UNKNOWN_LOCATION = "somewhere";
 
 fn archipelago_register_slot(index: int, name: string, game: string, type: int, group_members: List<int>) {
     ARCHIPELAGO_ROOM_INFO.slots.insert(index, ArchipelagoSlot {
@@ -145,9 +145,8 @@ fn get_location_name_for_player_by_id(player_id: int, location_id: string) -> st
 // TODO:
 // - Add message filtering and corresponding menu option
 //   - List::of(All, OnlyYou, OnlyProgressive, OnlyYouAndProgressive)?
-// - Add prettier logging and a menu option to keep logs for a certain amount of time
-//   - Logs should appear permanently when the player opens the AP menu (maybe?)
-//     - Annoyingly, you can leave the menu open. We should maybe fix this?
+// - Logs should appear permanently when the player opens the AP menu (maybe?)
+//   - Annoyingly, you can leave the menu open. We should maybe fix this?
 
 fn archipelago_print_json_message(json_message: ReboPrintJSONMessage) {
     let mut message = List::new();
@@ -155,6 +154,9 @@ fn archipelago_print_json_message(json_message: ReboPrintJSONMessage) {
         let raw_colorful_text = archipelago_interpret_json_message_part(part);
         message.push(raw_colorful_text);
     }
+
+    // TODO: Once relevancy setting is added, do the check here
+
     ap_log(message);
 }
 
@@ -181,7 +183,7 @@ fn archipelago_interpret_json_message_part(part: ReboJSONMessagePart) -> Colorfu
                 Option::None => UNKNOWN_ITEM,
             },
             // TODO: modify color depending on the type of item
-            color: Color { red: 0.000, green: 0.851, blue: 0.851, alpha: 1.000 }
+            color: AP_COLOR_CYAN
         },
         "location_id" => ColorfulText {
             text: match part.text {
@@ -218,17 +220,15 @@ fn ap_log(texts: List<ColorfulText>) {
     // Filter any newlines
     let filtered_texts = List::new();
     for text in texts {
-        filtered_texts.push(ColorfulText {
-            text: text.text.replace("\n", ""),
-            color: text.color
-        });
+        filtered_texts.push(ColorfulText { text: text.text.replace("\n", ""), color: text.color });
     }
-
-    AP_LOG.messages.push(ArchipelagoLogMessage {
-        texts: filtered_texts,
-        timestamp: current_time_millis(),
-    });
+    AP_LOG.messages.push(ArchipelagoLogMessage { texts: filtered_texts, timestamp: current_time_millis() });
 }
+
+// Convenience functions
+fn ap_log_info(text: string)    { ap_log(List::of(ColorfulText { text: text, color: COLOR_WHITE })); }
+fn ap_log_warning(text: string) { ap_log(List::of(ColorfulText { text: text, color: AP_COLOR_YELLOW })); }
+fn ap_log_error(text: string)   { ap_log(List::of(ColorfulText { text: text, color: AP_COLOR_RED })); }
 
 enum ArchipelagoLogDisplay {
     Off,
@@ -239,8 +239,9 @@ enum ArchipelagoLogDisplay {
 // Settings to be added to the menu
 static LOG_DISPLAY_COUNT = 8;
 static LOG_DISPLAY_WIDTH = 0.4;
-static LOG_DISPLAY_SECONDS = 8;
-static LOG_DISPLAY = ArchipelagoLogDisplay::On;
+static LOG_DISPLAY_MS = 8000;
+static LOG_FADEOUT_MS = 750;
+static LOG_DISPLAY = ArchipelagoLogDisplay::Temporary;
 
 static mut AP_LOG_COMPONENT = Component {
     id: ARCHIPELAGO_LOG_COMPONENT_ID,
@@ -264,7 +265,7 @@ static mut AP_LOG_COMPONENT = Component {
         let now = current_time_millis();
         while i < AP_LOG.messages.len() {
             let log = AP_LOG.messages.get(i).unwrap();
-            if LOG_DISPLAY == ArchipelagoLogDisplay::Temporary && (now - log.timestamp) > LOG_DISPLAY_SECONDS*1000 {
+            if LOG_DISPLAY == ArchipelagoLogDisplay::Temporary && (now - log.timestamp) > (LOG_DISPLAY_MS + LOG_FADEOUT_MS) {
                 i += 1;
                 continue;
             }
@@ -325,13 +326,13 @@ static mut AP_LOG_COMPONENT = Component {
 
 fn get_faded_log_color(color: Color, now: int, log_timestamp: int) -> Color {
     let delta = now - log_timestamp;
-    let display_ms = LOG_DISPLAY_SECONDS*1000;
-    let FADE_MS = 1500;
 
-    if LOG_DISPLAY == ArchipelagoLogDisplay::Temporary && display_ms - FADE_MS <= delta && delta <= display_ms {
+    if LOG_DISPLAY == ArchipelagoLogDisplay::Temporary
+    && LOG_DISPLAY_MS <= delta && delta <= LOG_DISPLAY_MS + LOG_FADEOUT_MS
+    {
         let mut faded_color = color.clone();
-        let t = (delta - (display_ms - FADE_MS));
-        faded_color.alpha = 1.0 -(t.to_float() / FADE_MS.to_float());
+        let t = delta - LOG_DISPLAY_MS;
+        faded_color.alpha = 1.0 - (t.to_float() / LOG_FADEOUT_MS.to_float());
         faded_color
     } else {
         color
