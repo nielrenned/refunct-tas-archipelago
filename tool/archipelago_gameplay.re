@@ -1,3 +1,4 @@
+
 struct ArchipelagoState {
     ap_connected: bool,
     last_level_unlocked: int,
@@ -26,6 +27,8 @@ struct ArchipelagoState {
     last_platform_c: Option<int>,
     last_platform_p: Option<int>,
     checked_locations: List<int>,
+    mod_version: string,
+    apworld_version: string,
 }
 
 fn fresh_archipelago_state() -> ArchipelagoState {
@@ -57,6 +60,8 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         last_platform_c: Option::None,
         last_platform_p: Option::None,
         checked_locations: List::new(),
+        mod_version: "0.3.2",
+        apworld_version: "",
     }
 }
 
@@ -460,7 +465,7 @@ fn archipelago_activate_stepped_on_platforms(){
 
 fn archipelago_received_slot_data(key: string, value: string){
     if key == "ap_world_version" {
-        log(f"Archipelago World Version: {value}");
+        ARCHIPELAGO_STATE.apworld_version = value.slice(1, -1);
     }
     
     if key == "required_grass" {

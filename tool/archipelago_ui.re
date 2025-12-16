@@ -381,10 +381,11 @@ fn create_archipelago_gamemodes_menu() -> Ui {
 }
 
 fn get_status_text_lines() -> List<ColorfulText> {
-    match ARCHIPELAGO_STATE.started {
+    let lines = match ARCHIPELAGO_STATE.started {
         0 => List::of(
             ColorfulText { text: "Archipelago Randomizer\n", color: COLOR_WHITE },
             ColorfulText { text: "Press new game (in Refunct menu).", color: AP_COLOR_CYAN },
+            
         ),
         1 => List::of(
             ColorfulText { text: "Archipelago Randomizer\n", color: COLOR_WHITE },
@@ -409,7 +410,18 @@ fn get_status_text_lines() -> List<ColorfulText> {
                 ColorfulText { text: "Unknown Gamemode", color: AP_COLOR_RED },
             ),
         }
+    };
+    if ARCHIPELAGO_STATE.apworld_version != ARCHIPELAGO_STATE.mod_version {
+        lines.push(ColorfulText {
+            text:  "\n\nVERSION MISMATCH",
+            color: AP_COLOR_RED
+        });
+        lines.push(ColorfulText {
+            text:  f"\nMOD: {ARCHIPELAGO_STATE.mod_version}, APWORLD: {ARCHIPELAGO_STATE.apworld_version}",
+            color: AP_COLOR_RED
+        });
     }
+    lines
 }
 
 fn get_move_rando_status_lines() -> List<ColorfulText> {
