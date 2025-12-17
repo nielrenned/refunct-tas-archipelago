@@ -441,7 +441,7 @@ fn get_status_text_lines() -> List<ColorfulText> {
 fn get_move_rando_status_lines() -> List<ColorfulText> {
     let final_platform = if ARCHIPELAGO_STATE.final_platform_known { f"{ARCHIPELAGO_STATE.final_platform_c}-{ARCHIPELAGO_STATE.final_platform_p}" } else { "??-??" };
     let ledge_grab_state = if ARCHIPELAGO_STATE.ledge_grab > 0 { "✔" } else { "✖" };
-    let wall_jump_state = if ARCHIPELAGO_STATE.wall_jump >= 2 { "∞" } else if ARCHIPELAGO_STATE.wall_jump == 1 { "1" } else { "0" };
+    let wall_jump_state = if ARCHIPELAGO_STATE.wall_jump >= 2 { "∞" } else if ARCHIPELAGO_STATE.wall_jump == 1 { "1" } else { "✖" };
     let jump_pad_state = if ARCHIPELAGO_STATE.jumppads > 0 { "✔" } else { "✖" };
     let swim_state = if ARCHIPELAGO_STATE.swim > 0 { "✔" } else { "✖" };
 
