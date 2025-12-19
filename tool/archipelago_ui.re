@@ -120,7 +120,9 @@ fn create_archipelago_connection_details_menu() -> Ui {
             label: Text { text: "Disconnect" },
             onclick: fn(label: Text) {
                 Tas::archipelago_disconnect();
-                leave_ui();
+                remove_component(ARCHIPELAGO_COMPONENT);
+                ARCHIPELAGO_STATE.ap_connected = false;
+                leave_ui(); leave_ui();
             },
         }));
     } else {
@@ -353,14 +355,24 @@ fn create_archipelago_gamemodes_menu() -> Ui {
                 leave_ui();
             },
         }),
-//        UiElement::Button(UiButton {
-//            label: Text { text: "Original randomizer" },
-//            onclick: fn(label: Text) {
-//                // log("Set gamemode to OG game");
-//                archipelago_init(2);
-//                leave_ui();
-//            },
-//        }),
+        UiElement::Button(UiButton {
+            label: Text { text: {
+                if ARCHIPELAGO_STATE.unlock_button_galore_minigame {
+                    "Button Galore"
+                } else {
+                    "Button Galore (locked)"
+                }
+            } },
+            onclick: fn(label: Text) {
+                if !ARCHIPELAGO_STATE.unlock_button_galore_minigame {
+                    // log("Button Galore gamemode is locked!");
+                    return;
+                }
+                // log("Set gamemode to Button Galore");
+                archipelago_init(2);
+                leave_ui();
+            },
+        }),
         UiElement::Button(UiButton {
             label: Text { text: {
                 if ARCHIPELAGO_STATE.unlock_seeker_minigame {
@@ -403,10 +415,11 @@ fn get_status_text_lines() -> List<ColorfulText> {
                 ColorfulText { text: "Goal: Press the buttons!", color: AP_COLOR_CYAN },
                 ColorfulText { text: f"\nProgress: {ARCHIPELAGO_STATE.progress_vanilla_minigame}", color: COLOR_WHITE },
             ),
-            // 2 => List::of(
-            //     ColorfulText { text: "Archipelago - Original Rando\n", color: COLOR_WHITE },
-            //     ColorfulText { text: "Touch a platform to start!", color: AP_COLOR_CYAN },
-            // ),
+            2 => List::of(
+                ColorfulText { text: "Archipelago - Button Galore\n", color: COLOR_WHITE },
+                ColorfulText { text: "Goal: Press the buttons!", color: AP_COLOR_CYAN },
+                ColorfulText { text: f"\nProgress: {ARCHIPELAGO_STATE.progress_button_galore_minigame}", color: COLOR_WHITE },
+            ),
             3 => List::of(
                 ColorfulText { text: "Archipelago - Seeker\n", color: COLOR_WHITE },
                 ColorfulText { text: "Goal: Find the empty platforms!", color: AP_COLOR_CYAN },
@@ -493,6 +506,16 @@ fn get_move_rando_status_lines() -> List<ColorfulText> {
         }
         lines.push(ColorfulText {
             text:  "\nSeeker",
+            color: AP_COLOR_GREEN
+        });
+        added_minigame_header = true;
+    }
+    if ARCHIPELAGO_STATE.unlock_button_galore_minigame && !ARCHIPELAGO_STATE.done_button_galore_minigame {
+        if !added_minigame_header {
+            lines.push(ColorfulText { text: "\n\nMinigames with Checks", color: COLOR_WHITE });
+        }
+        lines.push(ColorfulText {
+            text:  "\nButton Galore",
             color: AP_COLOR_GREEN
         });
         added_minigame_header = true;
