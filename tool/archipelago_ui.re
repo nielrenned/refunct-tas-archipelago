@@ -348,25 +348,44 @@ fn create_archipelago_settings_menu() -> Ui {
             },
         }),
         UiElement::Chooser(Chooser {
-            label: Text { text: "Filter Logs" },
+            label: Text { text: "Items you send/receive" },
             options: List::of(
-                Text { text: "No Filter" },
-                Text { text: "Only Logs About You" },
-                Text { text: "Only Logs About Progressive Items" },
-                Text { text: "Only Logs About You and Progressive Items" },
+                Text { text: "Show All" },
+                Text { text: "Show Only Progressive" },
+                Text { text: "Show None" },
             ),
-            selected: match SETTINGS.archipelago_log_filter {
-                ArchipelagoLogFilter::NoFilter => 0,
-                ArchipelagoLogFilter::OnlyYou => 1,
-                ArchipelagoLogFilter::OnlyProgressive => 2,
-                ArchipelagoLogFilter::OnlyYouAndProgressive => 3,
+            selected: match SETTINGS.archipelago_log_level_player {
+                ArchipelagoLogLevel::AllMessages => 0,
+                ArchipelagoLogLevel::OnlyProgressive => 1,
+                ArchipelagoLogLevel::NoMessages => 2,
             },
             onchange: fn(index: int) {
                 match index {
-                    0 => { SETTINGS.archipelago_log_filter = ArchipelagoLogFilter::NoFilter; },
-                    1 => { SETTINGS.archipelago_log_filter = ArchipelagoLogFilter::OnlyYou; },
-                    2 => { SETTINGS.archipelago_log_filter = ArchipelagoLogFilter::OnlyProgressive; },
-                    3 => { SETTINGS.archipelago_log_filter = ArchipelagoLogFilter::OnlyYouAndProgressive; },
+                    0 => { SETTINGS.archipelago_log_level_player = ArchipelagoLogLevel::AllMessages; },
+                    1 => { SETTINGS.archipelago_log_level_player = ArchipelagoLogLevel::OnlyProgressive; },
+                    2 => { SETTINGS.archipelago_log_level_player = ArchipelagoLogLevel::NoMessages; },
+                    _ => panic(f"unknown index {index}"),
+                };
+                SETTINGS.store();
+            },
+        }),
+        UiElement::Chooser(Chooser {
+            label: Text { text: "Items others send/receive" },
+            options: List::of(
+                Text { text: "Show All" },
+                Text { text: "Show Only Progressive" },
+                Text { text: "Show None" },
+            ),
+            selected: match SETTINGS.archipelago_log_level_others {
+                ArchipelagoLogLevel::AllMessages => 0,
+                ArchipelagoLogLevel::OnlyProgressive => 1,
+                ArchipelagoLogLevel::NoMessages => 2,
+            },
+            onchange: fn(index: int) {
+                match index {
+                    0 => { SETTINGS.archipelago_log_level_others = ArchipelagoLogLevel::AllMessages; },
+                    1 => { SETTINGS.archipelago_log_level_others = ArchipelagoLogLevel::OnlyProgressive; },
+                    2 => { SETTINGS.archipelago_log_level_others = ArchipelagoLogLevel::NoMessages; },
                     _ => panic(f"unknown index {index}"),
                 };
                 SETTINGS.store();
