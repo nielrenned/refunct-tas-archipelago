@@ -646,7 +646,7 @@ fn get_move_rando_status_lines() -> List<ColorfulText> {
             color: if ARCHIPELAGO_STATE.jumppads > 0 { AP_COLOR_GREEN } else { AP_COLOR_RED }
         },
         ColorfulText {
-            text:  if ARCHIPELAGO_STATE.wall_jump == 1 { f"{wall_jump_state} Wall Jump   " } else { f"{wall_jump_state} Wall Jumps  " },
+            text:  if ARCHIPELAGO_STATE.wall_jump >= 2 { f"{wall_jump_state} Wall Jumps  " } else { f"{wall_jump_state} Wall Jump   " },
             color: if ARCHIPELAGO_STATE.wall_jump >= 2 { AP_COLOR_GREEN } else if ARCHIPELAGO_STATE.wall_jump == 1 { AP_COLOR_YELLOW } else { AP_COLOR_RED }
         },
         ColorfulText {
