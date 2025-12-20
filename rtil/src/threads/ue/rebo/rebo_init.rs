@@ -266,6 +266,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_required_rebo_function(element_released)
         .add_required_rebo_function(on_key_down)
         .add_required_rebo_function(on_key_up)
+        .add_required_rebo_function(on_key_char)
         .add_required_rebo_function(on_mouse_move)
         .add_required_rebo_function(draw_hud)
         .add_required_rebo_function(player_joined_multiplayer_room)
@@ -568,6 +569,10 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                 let key = STATE.lock().unwrap().as_mut().unwrap().ui.key_released(key);
                 on_key_up(vm, key.raw_key_code, key.raw_character_code, repeat)?
             },
+            UeEvent::KeyChar(character, repeat) => {
+                // let key = STATE.lock().unwrap().as_mut().unwrap().ui.key_released(key);
+                on_key_char(vm, character as u32, repeat)?
+            },
             UeEvent::MouseMove(x, y) => {
                 let (absx, absy) = AMyCharacter::get_mouse_position();
                 STATE.lock().unwrap().as_mut().unwrap().ui.mouse_moved(absx as u32, absy as u32);
@@ -822,6 +827,7 @@ extern "rebo" {
     fn element_released(index: ElementIndex);
     fn on_key_down(key_code: i32, character_code: u32, is_repeat: bool);
     fn on_key_up(key_code: i32, character_code: u32, is_repeat: bool);
+    fn on_key_char(character: u32, is_repeat: bool);
     fn on_mouse_move(x: i32, y: i32);
     fn draw_hud();
     fn player_joined_multiplayer_room(id: u32, name: String, col: Color, loc: Location, rot: Rotation);
