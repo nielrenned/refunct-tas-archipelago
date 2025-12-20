@@ -154,7 +154,6 @@ impl<'a> CubeWrapper<'a> {
 
             let class: ClassWrapper = cube_class.upcast();
 
-            // Reuse the exact same pattern from spawn_amycharacter
             let location = FVector { x, y, z };
             let rotation = FRotator { pitch: 0.0, yaw: 0.0, roll: 0.0 };
             let spawn_parameters = FActorSpawnParameters {

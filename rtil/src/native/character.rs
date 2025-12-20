@@ -9,7 +9,7 @@ use crate::native::{AMYCHARACTER_STATICCLASS, REBO_DOESNT_START_SEMAPHORE, APLAY
 use crate::native::reflection::UClass;
 use crate::native::uworld::CAMERA_INDEX;
 
-static CURRENT_PLAYER: AtomicPtr<AMyCharacterUE> = AtomicPtr::new(std::ptr::null_mut());
+pub static CURRENT_PLAYER: AtomicPtr<AMyCharacterUE> = AtomicPtr::new(std::ptr::null_mut());
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AMyCharacter(*mut AMyCharacterUE);
