@@ -1,6 +1,8 @@
+use std::sync::atomic::Ordering;
 use crossbeam_channel::{Receiver, Sender};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use crate::native::{ALiftBaseUE, ElementIndex, EMouseButtonsType, Hooks, try_find_element_index, UObject};
+use tokio::sync::mpsc::UnboundedSender;
+use crate::native::{ALiftBaseUE, ElementIndex, EMouseButtonsType, Hooks, try_find_element_index, UObject, AActor, ActorWrapper};
+use crate::native::character::CURRENT_PLAYER;
 use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
 use crate::threads::ue::iced_ui::Key;
 
@@ -95,6 +97,19 @@ pub fn mouse_button_up(button: EMouseButtonsType) {
 }
 pub fn mouse_wheel(delta: f32) {
     handle(UeEvent::MouseWheel(delta));
+}
+
+pub fn aactor_receive_begin_overlap(this: *mut AActor, other: *mut AActor) {
+    if this.addr() == CURRENT_PLAYER.load(Ordering::SeqCst).addr() {
+        log!("Player [{:?}] overlapped with {:?}", this, other);
+        unsafe {
+            let wrapper = ActorWrapper::new(this);
+            let base_obj = &(*other).base_uobject;
+            log!("  Name: {:?}", base_obj.name.to_string_lossy());
+            log!("  Internal Index: {:?}", base_obj.internal_index);
+            log!("  Location: {:?}", wrapper.absolute_location());
+        }
+    }
 }
 
 pub fn draw_hud() {

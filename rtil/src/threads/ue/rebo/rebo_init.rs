@@ -1224,11 +1224,6 @@ fn spawn_cube(x: f32, y: f32, z: f32) {
     match CubeWrapper::spawn(x, y, z) {
         Ok(cube) => {
             log!("Successfully spawned cube at {:p}", cube.as_ptr());
-
-            UeScope::with(|scope| {
-                let cube_index = scope.object_index(&cube);
-                LEVELS.lock().unwrap()[0].cubes.push(cube_index);
-            });
         }
         Err(e) => {
             log!("Failed to spawn cube: {}", e);
