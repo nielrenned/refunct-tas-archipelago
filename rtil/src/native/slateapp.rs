@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicPtr, Ordering};
 use hook::{ArgsRef, IsaAbi, RawHook, TypedHook};
-use crate::native::{AACTOR_RECEIVEACTORBEGINOVERLAP, FSLATEAPPLICATION_TICK, FSLATEAPPLICATION_ONKEYDOWN, FSLATEAPPLICATION_ONKEYUP, FSLATEAPPLICATION_ONRAWMOUSEMOVE, REBO_DOESNT_START_SEMAPHORE, RefunctIsaAbi, FSLATEAPPLICATION_ONMOUSEDOUBLECLICK, FSLATEAPPLICATION_ONMOUSEDOWN, FSLATEAPPLICATION_ONMOUSEMOVE, FSLATEAPPLICATION_ONMOUSEUP, FSLATEAPPLICATION_ONMOUSEWHEEL, AActor};
+use crate::native::{AACTOR_RECEIVEACTORBEGINOVERLAP, FSLATEAPPLICATION_TICK, FSLATEAPPLICATION_ONKEYDOWN, FSLATEAPPLICATION_ONKEYUP, FSLATEAPPLICATION_ONKEYCHAR, FSLATEAPPLICATION_ONRAWMOUSEMOVE, REBO_DOESNT_START_SEMAPHORE, RefunctIsaAbi, FSLATEAPPLICATION_ONMOUSEDOUBLECLICK, FSLATEAPPLICATION_ONMOUSEDOWN, FSLATEAPPLICATION_ONMOUSEMOVE, FSLATEAPPLICATION_ONMOUSEUP, FSLATEAPPLICATION_ONMOUSEWHEEL};
+use crate::native::ue::TCHAR;
 
 static SLATEAPP: AtomicPtr<FSlateApplicationUE> = AtomicPtr::new(std::ptr::null_mut());
 
@@ -43,6 +44,7 @@ pub struct FSlateApplication {
     _tick: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE), ()>,
     onkeydown: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, i32, u32, bool), ()>,
     onkeyup: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, i32, u32, bool), ()>,
+    onkeychar: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, TCHAR, bool), ()>,
     onrawmousemove: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, i32, i32), ()>,
     _onmousemove: &'static RawHook<RefunctIsaAbi, ()>,
     _onmousedown: &'static RawHook<RefunctIsaAbi, ()>,
@@ -60,6 +62,7 @@ impl FSlateApplication {
                 _tick: TypedHook::create(FSLATEAPPLICATION_TICK.load(Ordering::Relaxed), tick_hook).enabled(),
                 onkeydown: TypedHook::create(FSLATEAPPLICATION_ONKEYDOWN.load(Ordering::Relaxed), on_key_down_hook).enabled(),
                 onkeyup: TypedHook::create(FSLATEAPPLICATION_ONKEYUP.load(Ordering::Relaxed), on_key_up_hook).enabled(),
+                onkeychar: TypedHook::create(FSLATEAPPLICATION_ONKEYCHAR.load(Ordering::Relaxed), on_key_char_hook).enabled(),
                 onrawmousemove: TypedHook::create(FSLATEAPPLICATION_ONRAWMOUSEMOVE.load(Ordering::Relaxed), on_raw_mouse_move_hook).enabled(),
                 _onmousemove: RawHook::create(FSLATEAPPLICATION_ONMOUSEMOVE.load(Ordering::Relaxed), on_mouse_move_hook).enabled(),
                 _onmousedown: RawHook::create(FSLATEAPPLICATION_ONMOUSEDOWN.load(Ordering::Relaxed), on_mouse_down_hook).enabled(),
@@ -130,6 +133,31 @@ fn on_key_up_hook<IA: IsaAbi>(hook: &TypedHook<IA, fn(*mut FSlateApplicationUE, 
         crate::threads::ue::key_up(key_code, character_code, is_repeat);
     }
     unsafe { hook.call_original_function((this, key_code, character_code, is_repeat)); }
+}
+
+fn on_key_char_hook<IA: IsaAbi>(hook: &TypedHook<IA, fn(*mut FSlateApplicationUE, TCHAR, bool), ()>, this: *mut FSlateApplicationUE, character: TCHAR, is_repeat: bool) {
+    // For now, on windows, we'll ignore utf-16 surrogate pairs
+    #[cfg(windows)]
+    let ch = if character < 0xD800 || character > 0xDFFF {
+        char::from_u32(character as u32)
+    } else {
+        None
+    };
+
+    #[cfg(unix)]
+    let ch = char::from_u32(character);
+
+    if let Some(ch) = ch {
+        // Only process printable characters
+        if !ch.is_control() {
+            log!("Character typed: '{}'", ch);
+            crate::threads::ue::key_char(ch, is_repeat);
+        } else {
+            log!("Control character: U+{:04X}", ch as u32);
+        }
+    }
+
+    unsafe { hook.call_original_function((this, character, is_repeat)); }
 }
 
 fn on_raw_mouse_move_hook<IA: IsaAbi>(hook: &TypedHook<IA, fn(*mut FSlateApplicationUE, i32, i32), ()>, this: *mut FSlateApplicationUE, x: i32, y: i32) {
