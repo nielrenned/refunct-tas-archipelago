@@ -162,12 +162,12 @@ fn create_archipelago_connection_details_menu() -> Ui {
 fn create_archipelago_settings_menu() -> Ui {
     Ui::new("Settings", List::of(
         UiElement::FloatInput(FloatInput {
-            label: Text { text: "UI Scale (0.1 - 1.0)" },
+            label: Text { text: "UI Scale (0.2 - 1.0)" },
             input: f"{SETTINGS.ui_scale}",
             onclick: fn(input: string) {},
             onchange: fn(input: string) {
                 match input.parse_float() {
-                    Result::Ok(size) => if 0.1 <= size && size <= 1.0 {
+                    Result::Ok(size) => if 0.2 <= size && size <= 1.0 {
                         SETTINGS.ui_scale = size;
                         SETTINGS.store();
                     },
@@ -619,23 +619,23 @@ fn get_status_text_lines() -> List<ColorfulText> {
             ),
         }
     };
-    if ARCHIPELAGO_STATE.apworld_version != ARCHIPELAGO_STATE.mod_version {
-        lines.push(ColorfulText {
-            text:  "\n\nVERSION MISMATCH",
-            color: AP_COLOR_RED
-        });
-        lines.push(ColorfulText {
-            text:  f"\nMOD: {ARCHIPELAGO_STATE.mod_version}, APWORLD: {ARCHIPELAGO_STATE.apworld_version}",
-            color: AP_COLOR_RED
-        });
-    }else{
-        if ARCHIPELAGO_STATE.started == 0 {
-            lines.push(ColorfulText {
-                text:  f"\n\nVersion {ARCHIPELAGO_STATE.apworld_version}",
-                color: COLOR_WHITE
-            });
-        }
-    }
+//    if ARCHIPELAGO_STATE.apworld_version != ARCHIPELAGO_STATE.mod_version {
+//        lines.push(ColorfulText {
+//            text:  "\n\nVERSION MISMATCH",
+//            color: AP_COLOR_RED
+//        });
+//        lines.push(ColorfulText {
+//            text:  f"\nMOD: {ARCHIPELAGO_STATE.mod_version}, APWORLD: {ARCHIPELAGO_STATE.apworld_version}",
+//            color: AP_COLOR_RED
+//        });
+//    }else{
+//        if ARCHIPELAGO_STATE.started == 0 {
+//            lines.push(ColorfulText {
+//                text:  f"\n\nVersion {ARCHIPELAGO_STATE.apworld_version}",
+//                color: COLOR_WHITE
+//            });
+//        }
+//    }
     lines
 }
 
