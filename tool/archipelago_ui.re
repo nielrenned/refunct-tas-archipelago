@@ -619,23 +619,23 @@ fn get_status_text_lines() -> List<ColorfulText> {
             ),
         }
     };
-//    if ARCHIPELAGO_STATE.apworld_version != ARCHIPELAGO_STATE.mod_version {
-//        lines.push(ColorfulText {
-//            text:  "\n\nVERSION MISMATCH",
-//            color: AP_COLOR_RED
-//        });
-//        lines.push(ColorfulText {
-//            text:  f"\nMOD: {ARCHIPELAGO_STATE.mod_version}, APWORLD: {ARCHIPELAGO_STATE.apworld_version}",
-//            color: AP_COLOR_RED
-//        });
-//    }else{
-//        if ARCHIPELAGO_STATE.started == 0 {
-//            lines.push(ColorfulText {
-//                text:  f"\n\nVersion {ARCHIPELAGO_STATE.apworld_version}",
-//                color: COLOR_WHITE
-//            });
-//        }
-//    }
+    if ARCHIPELAGO_STATE.apworld_version != ARCHIPELAGO_STATE.mod_version {
+        lines.push(ColorfulText {
+            text:  "\n\nVERSION MISMATCH",
+            color: AP_COLOR_RED
+        });
+        lines.push(ColorfulText {
+            text:  f"\nMOD: {ARCHIPELAGO_STATE.mod_version}, APWORLD: {ARCHIPELAGO_STATE.apworld_version}",
+            color: AP_COLOR_RED
+        });
+    }else{
+        if ARCHIPELAGO_STATE.started == 0 {
+            lines.push(ColorfulText {
+                text:  f"\n\nVersion {ARCHIPELAGO_STATE.apworld_version}",
+                color: COLOR_WHITE
+            });
+        }
+    }
     lines
 }
 
