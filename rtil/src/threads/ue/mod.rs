@@ -1,10 +1,11 @@
 use std::sync::atomic::Ordering;
 use crossbeam_channel::{Receiver, Sender};
 use tokio::sync::mpsc::UnboundedSender;
-use crate::native::{ALiftBaseUE, ElementIndex, EMouseButtonsType, Hooks, try_find_element_index, UObject, AActor, ActorWrapper};
+use crate::native::{ALiftBaseUE, ElementIndex, EMouseButtonsType, Hooks, try_find_element_index, UObject, AActor, ActorWrapper, ClassWrapper};
 use crate::native::character::CURRENT_PLAYER;
 use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
 use crate::threads::ue::iced_ui::Key;
+use crate::threads::ue::rebo::rebo_init::maybe_remove_extra_cube;
 
 mod rebo;
 mod iced_ui;
@@ -103,11 +104,19 @@ pub fn aactor_receive_begin_overlap(this: *mut AActor, other: *mut AActor) {
     if this.addr() == CURRENT_PLAYER.load(Ordering::SeqCst).addr() {
         log!("Player [{:?}] overlapped with {:?}", this, other);
         unsafe {
-            let wrapper = ActorWrapper::new(this);
-            let base_obj = &(*other).base_uobject;
-            log!("  Name: {:?}", base_obj.name.to_string_lossy());
-            log!("  Internal Index: {:?}", base_obj.internal_index);
-            log!("  Location: {:?}", wrapper.absolute_location());
+            let other_actor = ActorWrapper::new(other);
+
+            log!("  Name: {:?}", other_actor.name());
+            log!("  Internal Index: {:?}", other_actor.internal_index());
+            log!("  Location: {:?}", other_actor.absolute_location());
+
+            if other_actor.name().starts_with("BP_PowerCore") {
+                log!("  ** We think this object is a cube **");
+                maybe_remove_extra_cube(other_actor.internal_index());
+            }
+
+            // TODO: Whenever the player goes swimming, the other actor's name is "WaterVolume_1"
+            // so we can use that for reliable swimming detection, rather than actor's z-position
         }
     }
 }

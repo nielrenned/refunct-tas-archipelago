@@ -13,7 +13,6 @@ use rebo::{DisplayValue, ExecError, IncludeConfig, Map, Output, ReboConfig, Span
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use websocket::{ClientBuilder, Message, OwnedMessage, WebSocketError};
-use crate::log;
 use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, CubeWrapper};
 use crate::native::{try_find_element_index, ue::FVector, AActor, ALiftBaseUE, AMyCharacter, AMyHud, ActorWrapper, EBlendMode, FApp, FViewport, KismetSystemLibrary, Level, LevelState, LevelWrapper, ObjectIndex, ObjectWrapper, UGameplayStatics, UMyGameInstance, UObject, UTexture2D, UWorld, UeObjectWrapperType, UeScope, LEVELS};
 use protocol::{Request, Response};
@@ -91,6 +90,9 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(get_viewport_size)
         .add_function(get_text_size)
         .add_function(spawn_cube)
+        .add_function(destroy_cube)
+        .add_function(set_cube_collision)
+        .add_function(get_all_cubes)
         .add_function(spawn_pawn)
         .add_function(destroy_pawn)
         .add_function(move_pawn)
@@ -1219,37 +1221,64 @@ fn get_viewport_size() -> Size {
 }
 
 #[rebo::function("Tas::spawn_cube")]
-fn spawn_cube(x: f32, y: f32, z: f32) {
-    // find_cube_collection_function();
+fn spawn_cube(x: f32, y: f32, z: f32) -> i32 {
     match CubeWrapper::spawn(x, y, z) {
         Ok(cube) => {
-            log!("Successfully spawned cube at {:p}", cube.as_ptr());
+            let index = cube.internal_index();
+            STATE.lock().unwrap().as_mut().unwrap().extra_cubes.push(index);
+            log!("Successfully spawned cube at {:p} with internal index {}", cube.as_ptr(), cube.internal_index());
+            index
         }
         Err(e) => {
+            // TODO: should we just panic here???
             log!("Failed to spawn cube: {}", e);
+            -1
         }
     }
 }
 
-pub fn find_cube_collection_function() {
-    log!("Trying to find the cube functions");
+#[rebo::function("Tas::get_all_cubes")]
+fn get_all_cubes() -> Vec<i32> {
+    // TODO: this is probably misnamed? Since we're returning internal indices
+    let mut cubes = UeScope::with(|scope| {
+        return LEVELS.lock().unwrap().iter().flat_map(|level| {
+            level.cubes.iter().map(|cube| scope.get(cube).internal_index()).collect::<Vec<i32>>()
+        }).collect::<Vec<i32>>()
+    });
+    cubes.extend(&STATE.lock().unwrap().as_ref().unwrap().extra_cubes);
+    cubes
+}
+
+#[rebo::function("Tas::set_cube_collision")]
+fn set_cube_collision(internal_index: i32, collision_enabled: bool) {
+    // TODO: This silently fails right now. That's bad API design.
     UeScope::with(|scope| {
-        // Find any cube
-        let cube = scope.iter_global_object_array()
-            .map(|item| item.object())
-            .find(|obj| obj.class().name() == "BP_PowerCore_C")
-            .unwrap();
+        if let Some(item) = scope.object_array().try_get(internal_index) {
+            if let Some(cube) = item.object().try_upcast::<CubeWrapper>() {
+                cube.set_colllision(collision_enabled);
+            }
+        }
+    });
+}
 
-        // List all functions
-        log!("=== Functions in BP_PowerCore_C ===");
-        for func in cube.class().iter_functions() {
-            log!("Function: {}", func.name());
-            log!("  Num params: {}", func.num_parms());
-            log!("  Params size: {}", func.parms_size());
+pub fn maybe_remove_extra_cube(internal_index: i32) {
+    if let Some(state) = STATE.lock().unwrap().as_mut() {
+        if let Some(pos) = state.extra_cubes.iter().position(|i| *i == internal_index) {
+            state.extra_cubes.remove(pos);
+        }
+    }
+}
 
-            // Print parameters
-            for (i, param) in func.iter_params().enumerate() {
-                log!("    Param {}: {} ({})", i, param.name(), param.property_kind());
+#[rebo::function("Tas::destroy_cube")]
+fn destroy_cube(internal_index: i32) {
+    // TODO: This silently fails right now. That's bad API design.
+    maybe_remove_extra_cube(internal_index);
+
+    // Destroy the cube object
+    UeScope::with(|scope| {
+        if let Some(item) = scope.object_array().try_get(internal_index) {
+            if let Some(cube) = item.object().try_upcast::<CubeWrapper>() {
+                cube.destroy();
             }
         }
     });

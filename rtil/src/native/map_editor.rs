@@ -189,6 +189,10 @@ impl<'a> CubeWrapper<'a> {
         })
     }
 
+    pub fn set_colllision(&self, enabled: bool) {
+        AActor::set_actor_enable_collision(self.base.as_ptr(), enabled);
+    }
+
     pub fn destroy(&self) {
         unsafe {
             UWorld::destroy_actor(self.base.as_ptr() as *const AActor, true, true);
