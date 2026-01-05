@@ -137,8 +137,8 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(apply_map_cluster_speeds)
         .add_function(get_looked_at_element_index)
         .add_function(get_element_bounds)
-        .add_function(enable_collision)
-        .add_function(disable_collision)
+        .add_function(enable_player_collision)
+        .add_function(disable_player_collision)
         .add_function(exit_water)
         .add_function(respawn)        
         .add_function(is_death_link_on)
@@ -2255,13 +2255,13 @@ fn get_element_bounds(index: ElementIndex) -> Bounds {
     })
 }
 
-#[rebo::function("Tas::enable_collision")]
-fn enable_collision() {
+#[rebo::function("Tas::enable_player_collision")]
+fn enable_player_collision() {
     AActor::set_actor_enable_collision(AMyCharacter::get_player().as_ptr() as *const AActor, true);
 }
 
-#[rebo::function("Tas::disable_collision")]
-fn disable_collision() {
+#[rebo::function("Tas::disable_player_collision")]
+fn disable_player_collision() {
     AActor::set_actor_enable_collision(AMyCharacter::get_player().as_ptr() as *const AActor, false);
 }
 
