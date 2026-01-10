@@ -189,14 +189,14 @@ impl<'a> CubeWrapper<'a> {
         })
     }
 
-    pub fn set_collision(&self, enabled: bool) {
-        AActor::set_actor_enable_collision(self.base.as_ptr(), enabled);
-    }
-
     pub fn destroy(&self) {
         unsafe {
             UWorld::destroy_actor(self.base.as_ptr() as *const AActor, true, true);
         }
+    }
+
+    pub fn set_collision(&self, enabled: bool) {
+        AActor::set_actor_enable_collision(self.base.as_ptr(), enabled);
     }
 
     pub fn set_color(&self, r: f32, g: f32, b: f32) {
