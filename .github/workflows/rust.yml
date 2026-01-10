@@ -31,6 +31,7 @@ jobs:
           allowUpdates: true
           artifactErrorsFailBuild: true
           draft: true
+          omitDraftDuringUpdate: true
           omitBody: true
           omitBodyDuringUpdate: true
           omitName: true
