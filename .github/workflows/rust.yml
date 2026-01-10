@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  push:
+    tags: [ '*' ]
+
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            default: true
+      - name: Install libxcb components
+        run: sudo apt-get install libxcb-render0-dev libxcb-xfixes0-dev
+      - name: Build
+        run: make all zip
+      - name: release
+        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          draft: true
+          omitBody: true
+          omitBodyDuringUpdate: true
+          omitName: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          removeArtifacts: false
+          replacesArtifacts: true
+          artifacts: "build/practice-linux.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}

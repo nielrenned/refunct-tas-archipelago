@@ -1,0 +1,27 @@
+os: Visual Studio 2015
+environment:
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+  CARGO_HTTP_CHECK_REVOKE: false
+install:
+  - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+  - rustup-init -yv --default-toolchain stable --default-host i686-pc-windows-msvc
+  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - rustc -vV
+  - cargo -vV
+build: false
+test_script:
+  - make.bat
+after_test:
+  - cd build
+  - 7z a practice-windows.zip practice-windows
+artifacts:
+  - path: build\practice-windows.zip
+deploy:
+  provider: GitHub
+  artifact: /.*\.zip/
+  auth_token:
+    secure: DlUswOQNtvR+uA4kWXwS/9dz2bHAjK/EPzYJ5jfq47e8vjeurpUIn5buFwTV7p5R
+  draft: true
+  force_update: true
+  on:
+    appveyor_repo_tag: true

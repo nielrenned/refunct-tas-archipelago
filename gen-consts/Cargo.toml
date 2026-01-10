@@ -1,0 +1,10 @@
+[package]
+name = "gen-consts"
+version = "0.1.0"
+authors = ["oberien <jaro.fietz@gmx.de>"]
+edition = "2021"
+
+[dependencies]
+goblin = "0.5.1"
+pdb = "0.7.0"
+ureq = "2.4.0"

@@ -1,0 +1,11 @@
+target
+tool/replays
+build
+
+# vim swap files
+*.swp
+*.swo
+
+# intellij idea
+.idea/
+*.iml
