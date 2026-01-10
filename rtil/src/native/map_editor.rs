@@ -3,7 +3,7 @@ use std::fmt::{Formatter, Pointer};
 use std::ops::Deref;
 use std::sync::Mutex;
 use std::ptr;
-use crate::native::{ArrayWrapper, ObjectIndex, StructValueWrapper, UeObjectWrapperType, UeScope, UObject, ObjectWrapper, ClassWrapper, UWorld, DynamicValue};
+use crate::native::{ArrayWrapper, ObjectIndex, StructValueWrapper, UeObjectWrapperType, UeScope, UObject, ObjectWrapper, ClassWrapper, UWorld, DynamicValue, BoolValueWrapper, DerefToObjectWrapper};
 use crate::native::reflection::{AActor, ActorWrapper, UeObjectWrapper};
 use crate::native::ue::{FRotator, FVector, FName};
 use crate::native::uworld::{ESpawnActorCollisionHandlingMethod, ESpawnActorNameMode, FActorSpawnParameters};
@@ -181,6 +181,9 @@ impl<'a> CubeWrapper<'a> {
 
             let cube = CubeWrapper::new(ActorWrapper::new(actor_ptr));
 
+            // cube.set_scale(10.0);
+            // cube.set_location(x, y, z - 9.0*160.0 + 160.0);
+
             // Mark as root to prevent GC
             let item = scope.object_array().get_item_of_object(&cube);
             item.mark_as_root_object(true);
@@ -260,6 +263,47 @@ impl<'a> CubeWrapper<'a> {
             }
         } else {
             log!("Warning: No light component found on cube {}", self.as_ptr().addr());
+        }
+    }
+
+    pub fn set_scale(&self, new_scale: f32) {
+        let old_bounds = self.get_actor_bounds();
+        let old_z = old_bounds.2;
+        let old_h = old_bounds.5;
+
+        let root_component: ObjectWrapper = self.get_field("RootComponent").unwrap();
+        let set_world_scale = root_component.class().find_function("SetRelativeScale3D").unwrap();
+        let params = set_world_scale.create_argument_struct();
+        let s: StructValueWrapper = params.get_field("NewScale3D").unwrap();
+        s.get_field("X").unwrap::<&Cell<f32>>().set(new_scale);
+        s.get_field("Y").unwrap::<&Cell<f32>>().set(new_scale);
+        s.get_field("Z").unwrap::<&Cell<f32>>().set(new_scale);
+
+        unsafe { set_world_scale.call(root_component.as_ptr(), &params); }
+
+        // The anchor for the cube mesh is below the cube, so when we scale up, the cube moves up.
+        // So we need to move the position back down to compensate.
+        let new_bounds = self.get_actor_bounds();
+        let new_z = new_bounds.2;
+        let new_h = new_bounds.5;
+
+        let loc = self.absolute_location();
+        self.set_location(loc.0, loc.1, loc.2 - (new_z - old_z) + (new_h - old_h)/2.0);
+    }
+
+    pub fn set_location(&self, x: f32, y: f32, z: f32) {
+        let root_component: ObjectWrapper = self.get_field("RootComponent").unwrap();
+        let set_world_location_and_rotation = root_component.class().find_function("K2_SetWorldLocation").unwrap();
+
+        let params = set_world_location_and_rotation.create_argument_struct();
+        let location: StructValueWrapper = params.get_field("NewLocation").unwrap();
+        location.get_field("X").unwrap::<&Cell<f32>>().set(x);
+        location.get_field("Y").unwrap::<&Cell<f32>>().set(y);
+        location.get_field("Z").unwrap::<&Cell<f32>>().set(z);
+        params.get_field("bSweep").unwrap::<BoolValueWrapper>().set(false);
+        params.get_field("bTeleport").unwrap::<BoolValueWrapper>().set(true);
+        unsafe {
+            set_world_location_and_rotation.call(root_component.as_ptr(), &params);
         }
     }
 }

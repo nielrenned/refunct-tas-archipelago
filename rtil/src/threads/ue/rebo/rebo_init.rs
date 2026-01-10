@@ -93,6 +93,8 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(destroy_cube)
         .add_function(set_cube_collision)
         .add_function(set_cube_color)
+        .add_function(set_cube_location)
+        .add_function(set_cube_scale)
         .add_function(get_all_cubes)
         .add_function(spawn_pawn)
         .add_function(destroy_pawn)
@@ -1269,6 +1271,30 @@ fn set_cube_color(internal_index: i32, r: f32, g: f32, b: f32) {
         if let Some(item) = scope.object_array().try_get(internal_index) {
             if let Some(cube) = item.object().try_upcast::<CubeWrapper>() {
                 cube.set_color(r, g, b);
+            }
+        }
+    });
+}
+
+#[rebo::function("Tas::set_cube_location")]
+fn set_cube_location(internal_index: i32, x: f32, y: f32, z: f32) {
+    // TODO: This silently fails right now. That's bad API design.
+    UeScope::with(|scope| {
+        if let Some(item) = scope.object_array().try_get(internal_index) {
+            if let Some(cube) = item.object().try_upcast::<CubeWrapper>() {
+                cube.set_location(x, y, z);
+            }
+        }
+    });
+}
+
+#[rebo::function("Tas::set_cube_scale")]
+fn set_cube_scale(internal_index: i32, s: f32) {
+    // TODO: This silently fails right now. That's bad API design.
+    UeScope::with(|scope| {
+        if let Some(item) = scope.object_array().try_get(internal_index) {
+            if let Some(cube) = item.object().try_upcast::<CubeWrapper>() {
+                cube.set_scale(s);
             }
         }
     });
