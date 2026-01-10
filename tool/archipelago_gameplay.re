@@ -330,14 +330,14 @@ fn archipelago_process_item(item_id: int, starting_index: int, item_index: int) 
 
 }
 
-fn archipelago_trigger_one_cluster_now(){
+fn archipelago_trigger_one_cluster_now(time: int) {
     if ARCHIPELAGO_STATE.triggering_clusters.len() == 0 {
         return;
     }
-    ARCHIPELAGO_STATE.triggering_clusters_counter += 1;
-    if ARCHIPELAGO_STATE.triggering_clusters_counter % 50 != 0 {
+    if time - ARCHIPELAGO_STATE.triggering_clusters_counter < 400 {
         return;
     }
+    ARCHIPELAGO_STATE.triggering_clusters_counter = time;
 
     let c = ARCHIPELAGO_STATE.triggering_clusters.get(0).unwrap();
     ARCHIPELAGO_STATE.triggering_clusters.remove(0);

@@ -30,8 +30,7 @@ use crate::threads::ue::iced_ui::rebo_elements::{IcedButton, IcedColumn, IcedEle
 
 use crate::native::{BoolValueWrapper};
 use crate::native::reflection::DerefToObjectWrapper;
-use std::collections::VecDeque;
-use std::sync::atomic::Ordering;
+use std::time::SystemTime;
 
 pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
     let mut cfg = ReboConfig::new()
@@ -762,7 +761,9 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
             }
         }
 
-        let _ = archipelago_trigger_one_cluster_now(vm);
+        // get current timestamp in milliseconds:
+        let before = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+        let _ = archipelago_trigger_one_cluster_now(vm, before)?;
 
         match to_be_returned {
             Some(ret) => {
@@ -810,7 +811,7 @@ extern "rebo" {
     fn archipelago_register_game_location(game_name: String, location_name: String, location_id: String);
     fn archipelago_print_json_message(json_message: ReboPrintJSONMessage);
     fn archipelago_received_death(source: String, cause: String);
-    fn archipelago_trigger_one_cluster_now();
+    fn archipelago_trigger_one_cluster_now(time: u64);
 }
 
 fn config_path() -> PathBuf {
