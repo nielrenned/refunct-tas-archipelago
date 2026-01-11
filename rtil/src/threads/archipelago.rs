@@ -13,6 +13,7 @@ use crate::threads::{ArchipelagoToRebo, ReboToArchipelago};
 pub fn run(archipelago_rebo_tx: Sender<ArchipelagoToRebo>, mut rebo_archipelago_rx: UnboundedReceiver<ReboToArchipelago>) {
     thread::spawn(move || {
         loop {
+            #[allow(unreachable_code)]
             let future = async {
                 let mut sender: Option<ArchipelagoClientSender> = None;
                 let mut current_slot: Option<String> = None;
@@ -30,7 +31,7 @@ pub fn run(archipelago_rebo_tx: Sender<ArchipelagoToRebo>, mut rebo_archipelago_
                                 .await?;
                             log!("Connected info: {:?}", connected_info);
                             archipelago_rebo_tx.send(ArchipelagoToRebo::ServerMessage(ServerMessage::Connected(connected_info))).unwrap();
-                            let (s, mut receiver) = client.split();
+                            let (s, receiver) = client.split();
                             sender = Some(s);
                             let join_handle = tokio::spawn(handle_receiver(receiver, archipelago_rebo_tx.clone()));
                             receiver_abort_handle = Some(join_handle.abort_handle());
@@ -124,7 +125,7 @@ async fn handle_receiver(mut receiver: ArchipelagoClientReceiver, archipelago_re
             Ok(None) => {
                 continue;
             }
-            Err(e) => {
+            Err(_e) => {
                 archipelago_rebo_tx.send(ArchipelagoToRebo::ConnectionAborted).unwrap();
                 break;
             }
