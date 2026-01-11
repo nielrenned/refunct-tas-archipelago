@@ -1,5 +1,5 @@
 use crossbeam_channel::{Receiver, Sender};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedSender};
 use crate::native::{ALiftBaseUE, ElementIndex, EMouseButtonsType, Hooks, try_find_element_index, UObject};
 use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
 use crate::threads::ue::iced_ui::Key;
