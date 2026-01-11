@@ -96,6 +96,8 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(set_cube_color)
         .add_function(set_cube_location)
         .add_function(set_cube_scale)
+        .add_function(get_vanilla_cubes)
+        .add_function(get_non_vanilla_cubes)
         .add_function(get_all_cubes)
         .add_function(spawn_pawn)
         .add_function(destroy_pawn)
@@ -1246,11 +1248,25 @@ fn spawn_cube(x: f32, y: f32, z: f32) -> i32 {
     }
 }
 
+#[rebo::function("Tas::get_vanilla_cubes")]
+fn get_vanilla_cubes() -> Vec<i32> {
+    UeScope::with(|scope| {
+        LEVELS.lock().unwrap().iter().flat_map(|level| {
+            level.cubes.iter().map(|cube| scope.get(cube).internal_index()).collect::<Vec<i32>>()
+        }).collect::<Vec<i32>>()
+    })
+}
+
+#[rebo::function("Tas::get_non_vanilla_cubes")]
+fn get_non_vanilla_cubes() -> Vec<i32> {
+    STATE.lock().unwrap().as_ref().unwrap().extra_cubes.clone()
+}
+
 #[rebo::function("Tas::get_all_cubes")]
 fn get_all_cubes() -> Vec<i32> {
     // TODO: should extra_cubes reset on new_game? Or should we leave that up to the Rebo code?
     let mut cubes = UeScope::with(|scope| {
-        return LEVELS.lock().unwrap().iter().flat_map(|level| {
+        LEVELS.lock().unwrap().iter().flat_map(|level| {
             level.cubes.iter().map(|cube| scope.get(cube).internal_index()).collect::<Vec<i32>>()
         }).collect::<Vec<i32>>()
     });
