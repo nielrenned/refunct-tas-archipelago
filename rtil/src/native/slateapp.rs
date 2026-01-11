@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicPtr, Ordering};
 use hook::{ArgsRef, IsaAbi, RawHook, TypedHook};
-use crate::native::{AACTOR_RECEIVEACTORBEGINOVERLAP, FSLATEAPPLICATION_TICK, FSLATEAPPLICATION_ONKEYDOWN, FSLATEAPPLICATION_ONKEYUP, FSLATEAPPLICATION_ONKEYCHAR, FSLATEAPPLICATION_ONRAWMOUSEMOVE, REBO_DOESNT_START_SEMAPHORE, RefunctIsaAbi, FSLATEAPPLICATION_ONMOUSEDOUBLECLICK, FSLATEAPPLICATION_ONMOUSEDOWN, FSLATEAPPLICATION_ONMOUSEMOVE, FSLATEAPPLICATION_ONMOUSEUP, FSLATEAPPLICATION_ONMOUSEWHEEL};
+use crate::native::{AACTOR_RECEIVEACTORBEGINOVERLAP, FSLATEAPPLICATION_TICK, FSLATEAPPLICATION_ONKEYDOWN, FSLATEAPPLICATION_ONKEYUP, FSLATEAPPLICATION_ONKEYCHAR, FSLATEAPPLICATION_ONRAWMOUSEMOVE, REBO_DOESNT_START_SEMAPHORE, RefunctIsaAbi, FSLATEAPPLICATION_ONMOUSEDOUBLECLICK, FSLATEAPPLICATION_ONMOUSEDOWN, FSLATEAPPLICATION_ONMOUSEMOVE, FSLATEAPPLICATION_ONMOUSEUP, FSLATEAPPLICATION_ONMOUSEWHEEL, AActor};
 use crate::native::ue::TCHAR;
 
 static SLATEAPP: AtomicPtr<FSlateApplicationUE> = AtomicPtr::new(std::ptr::null_mut());
@@ -44,7 +44,7 @@ pub struct FSlateApplication {
     _tick: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE), ()>,
     onkeydown: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, i32, u32, bool), ()>,
     onkeyup: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, i32, u32, bool), ()>,
-    onkeychar: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, TCHAR, bool), ()>,
+    _onkeychar: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, TCHAR, bool), ()>,
     onrawmousemove: &'static TypedHook<RefunctIsaAbi, fn(*mut FSlateApplicationUE, i32, i32), ()>,
     _onmousemove: &'static RawHook<RefunctIsaAbi, ()>,
     _onmousedown: &'static RawHook<RefunctIsaAbi, ()>,
@@ -52,7 +52,7 @@ pub struct FSlateApplication {
     _onmouseup: &'static RawHook<RefunctIsaAbi, ()>,
     _onmousewheel: &'static RawHook<RefunctIsaAbi, ()>,
 
-    on_aactor_receive_begin_overlap: &'static TypedHook<RefunctIsaAbi, fn(*mut AActor, *mut AActor), ()>,
+    _on_aactor_receive_begin_overlap: &'static TypedHook<RefunctIsaAbi, fn(*mut AActor, *mut AActor), ()>,
 }
 
 impl FSlateApplication {
@@ -62,7 +62,7 @@ impl FSlateApplication {
                 _tick: TypedHook::create(FSLATEAPPLICATION_TICK.load(Ordering::Relaxed), tick_hook).enabled(),
                 onkeydown: TypedHook::create(FSLATEAPPLICATION_ONKEYDOWN.load(Ordering::Relaxed), on_key_down_hook).enabled(),
                 onkeyup: TypedHook::create(FSLATEAPPLICATION_ONKEYUP.load(Ordering::Relaxed), on_key_up_hook).enabled(),
-                onkeychar: TypedHook::create(FSLATEAPPLICATION_ONKEYCHAR.load(Ordering::Relaxed), on_key_char_hook).enabled(),
+                _onkeychar: TypedHook::create(FSLATEAPPLICATION_ONKEYCHAR.load(Ordering::Relaxed), on_key_char_hook).enabled(),
                 onrawmousemove: TypedHook::create(FSLATEAPPLICATION_ONRAWMOUSEMOVE.load(Ordering::Relaxed), on_raw_mouse_move_hook).enabled(),
                 _onmousemove: RawHook::create(FSLATEAPPLICATION_ONMOUSEMOVE.load(Ordering::Relaxed), on_mouse_move_hook).enabled(),
                 _onmousedown: RawHook::create(FSLATEAPPLICATION_ONMOUSEDOWN.load(Ordering::Relaxed), on_mouse_down_hook).enabled(),
@@ -70,7 +70,7 @@ impl FSlateApplication {
                 _onmouseup: RawHook::create(FSLATEAPPLICATION_ONMOUSEUP.load(Ordering::Relaxed), on_mouse_up_hook).enabled(),
                 _onmousewheel: RawHook::create(FSLATEAPPLICATION_ONMOUSEWHEEL.load(Ordering::Relaxed), on_mouse_wheel_hook).enabled(),
 
-                on_aactor_receive_begin_overlap: TypedHook::create(AACTOR_RECEIVEACTORBEGINOVERLAP.load(Ordering::Relaxed), on_aactor_receive_begin_overlap).enabled(),
+                _on_aactor_receive_begin_overlap: TypedHook::create(AACTOR_RECEIVEACTORBEGINOVERLAP.load(Ordering::Relaxed), on_aactor_receive_begin_overlap).enabled(),
             }
         }
     }

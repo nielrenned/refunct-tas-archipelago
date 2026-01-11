@@ -16,7 +16,7 @@ use websocket::{ClientBuilder, Message, OwnedMessage, WebSocketError};
 use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, CubeWrapper};
 use crate::native::{try_find_element_index, ue::FVector, AActor, ALiftBaseUE, AMyCharacter, AMyHud, ActorWrapper, EBlendMode, FApp, FViewport, KismetSystemLibrary, Level, LevelState, LevelWrapper, ObjectIndex, ObjectWrapper, UGameplayStatics, UMyGameInstance, UObject, UTexture2D, UWorld, UeObjectWrapperType, UeScope, LEVELS};
 use protocol::{Request, Response};
-use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo, archipelago};
+use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
 use super::{STATE, livesplit::{Game, NewGameGlitch, SplitsSaveError, SplitsLoadError}};
 use serde::{Serialize, Deserialize};
 use crate::threads::ue::{Suspend, UeEvent, rebo::YIELDER};
@@ -29,7 +29,6 @@ use crate::threads::ue::iced_ui::rebo_elements::{IcedButton, IcedColumn, IcedEle
 
 use crate::native::{BoolValueWrapper};
 use crate::native::reflection::DerefToObjectWrapper;
-use std::time::SystemTime;
 
 pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
     let mut cfg = ReboConfig::new()
@@ -632,7 +631,7 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
 
         // check archipelago
         loop {
-            let mut res = STATE.lock().unwrap().as_mut().unwrap().archipelago_rebo_rx.try_recv();
+            let res = STATE.lock().unwrap().as_mut().unwrap().archipelago_rebo_rx.try_recv();
             match res {
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => panic!("archipelago_rebo_rx became disconnected"),
@@ -1743,11 +1742,6 @@ fn archipelago_gather_all_buttons() {
             if class_name == "BP_Button_C" && name != "Default__BP_Button_C" {
                 vec.push(object.as_ptr() as usize);
             }
-            if class_name == "AudioComponent" {
-                let object = unsafe { ObjectWrapper::new(object.as_ptr() as *mut UObject) };
-                // ???
-            }
-
         }
     });
 
