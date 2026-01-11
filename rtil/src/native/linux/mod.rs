@@ -111,6 +111,7 @@ find! {
     APLAYERCONTROLLER_GETVIEWPORTSIZE, "^APlayerController::GetViewportSize(int&, int&)",
     APAWN_SPAWNDEFAULTCONTROLLER, "^APawn::SpawnDefaultController()",
     AACTOR_SETACTORENABLECOLLISION, "^AActor::SetActorEnableCollision(bool)",
+    AACTOR_RECEIVEACTORBEGINOVERLAP, "^AActor::ReceiveActorBeginOverlap(AActor*)",
     UOBJECT_PROCESSEVENT, "^UObject::ProcessEvent(UFunction*, void*)",
     UGAMEPLAYSTATICS_GETACCURATEREALTIME, "^UGameplayStatics::GetAccurateRealTime(UObject const*, int&, float&)",
     UTEXTURE2D_CREATETRANSIENT, "^UTexture2D::CreateTransient(int, int, EPixelFormat)",
