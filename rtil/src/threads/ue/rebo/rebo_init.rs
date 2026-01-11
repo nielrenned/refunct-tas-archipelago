@@ -94,6 +94,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(get_vanilla_cube)
         .add_function(set_cube_collision)
         .add_function(set_cube_color)
+        .add_function(set_cube_color_random)
         .add_function(set_cube_location)
         .add_function(set_cube_scale)
         .add_function(get_vanilla_cubes)
@@ -1309,6 +1310,16 @@ fn set_cube_collision(internal_index: i32, collision_enabled: bool) {
 fn set_cube_color(internal_index: i32, c: Color) {
     // Sadly alpha seems to be ignored, so we're just going to silently drop it
     find_cube_and(internal_index, |cube| cube.set_color(c.red, c.green, c.blue));
+}
+
+#[rebo::function("Tas::set_cube_color_random")]
+fn set_cube_color_random(internal_index: i32) {
+    find_cube_and(internal_index, |cube| {
+        let r = rand::random::<f32>();
+        let g = rand::random::<f32>();
+        let b = rand::random::<f32>();
+        cube.set_color(r, g, b);
+    });
 }
 
 #[rebo::function("Tas::set_cube_location")]
