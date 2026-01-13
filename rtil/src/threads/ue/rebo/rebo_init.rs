@@ -745,8 +745,6 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::DataPackage(pkg))) => {
                     log!("DataPackage message");
-                    let msg = format!("Archipelago ServerMessage::DataPackage: {:?}", pkg);
-                    log!("{}", msg);
 
                     for (game_name, game_data) in pkg.data.games {
                         for (item_name, item_id) in game_data.item_name_to_id {
