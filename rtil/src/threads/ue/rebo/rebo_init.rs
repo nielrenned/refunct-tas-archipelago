@@ -123,10 +123,14 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(trigger_element_by_type)
         .add_function(archipelago_activate_buttons_ap)
         .add_function(archipelago_gather_all_buttons)
-        .add_function(archipelago_set_wall_jump_and_ledge_grab)
-        .add_function(archipelago_set_jump_pads)
         .add_function(archipelago_trigger_goal_animation)
         .add_function(archipelago_raise_cluster)
+        .add_function(abilities_set_wall_jump)
+        .add_function(abilities_set_ledge_grab)
+        .add_function(abilities_set_jump_pads)
+        .add_function(abilities_set_pipes)
+        .add_function(abilities_set_lifts)
+        .add_function(abilities_set_swim)
         .add_function(set_start_seconds)
         .add_function(set_start_partial_seconds)
         .add_function(set_end_seconds)
@@ -1011,6 +1015,7 @@ fn get_location_and_log() {
 }
 #[rebo::function("Tas::set_location")]
 fn set_location(loc: Location) {
+    log!("TELEPORTED to x={}, y={}, z={}", loc.x, loc.y, loc.z);
     AMyCharacter::get_player().set_location(loc.x, loc.y, loc.z);
 }
 #[derive(Debug, Clone, Copy, rebo::ExternalType, Serialize, Deserialize)]
@@ -1398,6 +1403,55 @@ pub fn maybe_remove_extra_cube(internal_index: i32) -> bool {
         }
     }
     false
+}
+
+#[rebo::function("Tas::abilities_set_pipes")]
+fn abilities_set_pipes(enabled: bool) {
+    log!("Archipelago: setting pipes to {}", enabled);
+    UeScope::with(|scope| {
+        for level in LEVELS.lock().unwrap().iter() {
+            for pipe in level.pipes.iter() {
+                scope.get(pipe).set_enabled(enabled);
+            }
+        }
+    });
+}
+
+#[rebo::function("Tas::abilities_set_lifts")]
+fn abilities_set_lifts(enabled: bool) {
+    log!("Archipelago: setting lifts to {}", enabled);
+    UeScope::with(|scope| {
+        for level in LEVELS.lock().unwrap().iter() {
+            for lift in level.lifts.iter() {
+                scope.get(lift).set_enabled(enabled);
+            }
+        }
+
+        // TODO: figure out why changing this volume occasionally crashes the game
+        // let new_volume = if enabled { 1.0 } else { 0.0 };
+        // log!("Setting lift sound volume to {}", new_volume);
+        // for item in scope.iter_global_object_array() {
+        //     let object = item.object();
+        //     let obj_name = object.name();
+        //
+        //     if matches!(obj_name.as_str(), "LiftDownStart_Cue" | "LiftDownStop_Cue" | "LiftUpStart_Cue" | "LiftUpStop_Cue")
+        //     {
+        //         let volume = object.get_field("VolumeMultiplier").unwrap::<&Cell<f32>>();
+        //         volume.set(new_volume);
+        //         log!("  Set volume of {} to {new_volume}", obj_name);
+        //     }
+        // }
+    });
+}
+
+#[rebo::function("Tas::abilities_set_swim")]
+fn abilities_set_swim(enabled: bool) {
+    log!("Archipelago: setting swim to {}", enabled);
+    if enabled {
+        UWorld::set_kill_z(-6000.);
+    }else{
+        UWorld::set_kill_z(-60.);
+    }
 }
 
 #[rebo::function("Tas::spawn_pawn")]
@@ -1898,124 +1952,62 @@ fn trigger_element_by_type_in(cluster_index: usize, element_type: String, elemen
         }
     });
 }
-#[rebo::function("Tas::archipelago_set_jump_pads")]
-fn archipelago_set_jump_pads(enabled: i32) {
+#[rebo::function("Tas::abilities_set_jump_pads")]
+fn abilities_set_jump_pads(enabled: bool) {
     log!("Archipelago: setting jump pads to {}", enabled);
     unsafe {
         let character = ObjectWrapper::new(AMyCharacter::get_player().as_ptr() as *mut UObject);
-        if enabled == 0 {  // no jump pads
-            character.get_field("LaunchVelocityZ").unwrap::<&Cell<f32>>().set(1000.);
+        if !enabled {  // no jump pads
+            character.get_field("LaunchVelocityZ").unwrap::<&Cell<f32>>().set(700.);
         } else {
             character.get_field("LaunchVelocityZ").unwrap::<&Cell<f32>>().set(1979.899);  // default value
         }
     }
 }
-#[rebo::function("Tas::archipelago_set_wall_jump_and_ledge_grab")]
-fn archipelago_set_wall_jump_and_ledge_grab(wall_jump: i32, ledge_grab: i32, change_physics: bool) {
-    // 0 is off, 1 is on, 2 is keep current
+#[rebo::function("Tas::abilities_set_wall_jump")]
+fn abilities_set_wall_jump(wall_jump: i32, change_physics: bool) {
+    // 0 is off, 1 is one, 2 is infinite
+    // change_physics changes the wall jump angles to make wall jumping not replace ledge grab
     log!("Archipelago: setting wall jump to {}", wall_jump);
-    log!("Archipelago: setting ledge grab to {}", ledge_grab);
+    log!("Archipelago: change_physics to {}", change_physics);
     unsafe {
         let character = ObjectWrapper::new(AMyCharacter::get_player().as_ptr() as *mut UObject);
 
-        // for field in character.class().iter_fields() {
-        //     log!("Found field: {:?}", field.name());
-        // }
-
-        // // Print a bunch of additional fields; if they are not floats print "not a float".
-        // let character_ptr = character.as_ptr() as *mut UObject;
-
-        // let try_field_float = |field_name: &str| -> String {
-        //     let name = field_name.to_string();
-        //     match std::panic::catch_unwind(move || {
-        //         // recreate wrapper inside unwind-safe closure from raw pointer
-        //         let character = unsafe { ObjectWrapper::new(character_ptr) };
-        //         character.get_field(&name).unwrap::<&Cell<f32>>().get()
-        //     }) {
-        //         Ok(v) => format!("{}", v),
-        //         Err(_) => "not a float".to_string(),
-        //     }
-        // };
-
-        // let try_field_int = |field_name: &str| -> String {
-        //     let name = field_name.to_string();
-        //     match std::panic::catch_unwind(move || {
-        //         // recreate wrapper inside unwind-safe closure from raw pointer
-        //         let character = unsafe { ObjectWrapper::new(character_ptr) };
-        //         character.get_field(&name).unwrap::<&Cell<i32>>().get()
-        //     }) {
-        //         Ok(v) => format!("{}", v),
-        //         Err(_) => "not a float".to_string(),
-        //     }
-        // };
-
-        // let fields_float = [
-        //     "LastWallJumpTime",
-        //     "MinWallJumpInterval",
-        //     "MaxClimbWallAngle",
-        //     "LaunchVelocityZ",
-        //     "BonusJumpVelocityZ",
-        //     "JumpMaxHoldTime",
-        //     "StartBonusJumpTime",
-        //     "LastJumpTime",
-        //     "GravityScale",
-        //     "VerticalPipeLaunchSpeed",
-        //     "ClimbSpeed",
-        //     "MinTravelSpeed",
-        //     "BaseSpeed",
-        //     "VerticalPipeMinAngle",
-        //     "MinForcedWallJumpAngle",
-        //     "MinWallJumpAngleDiff",
-        //     "MaxForcedWallJumpAngle",
-        // ];
-
-        // for &f in &fields_float {
-        //     let value = try_field_float(f);
-        //     log!("Field {}: {}", f, value);
-        // }
-
-        // let fields_float_int = [
-        //     "JumpCurrentCount",
-        //     "JumpMaxCount"
-        // ];
-
-        // for &f in &fields_float_int {
-        //     let value = try_field_int(f);
-        //     log!("Field {}: {}", f, value);
-        // }
-
-        if wall_jump >= 0 {
-            if change_physics {
-                character.get_field("MinForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(-0.8);
-                character.get_field("MinWallJumpAngleDiff").unwrap::<&Cell<f32>>().set(0.8);
-                character.get_field("MaxForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(0.8);
-            } else {
-                character.get_field("MinForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(-0.5);
-                character.get_field("MinWallJumpAngleDiff").unwrap::<&Cell<f32>>().set(0.5);
-                character.get_field("MaxForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(0.5);
-            }
-            if wall_jump == 0 {  // no wall jump
-                character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(385738752.);
-                character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(385738752.);
-            } else if wall_jump == 1 {  // just one wall jump
-                character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(-385738752.);
-                character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(1.);
-            } else{  // infinite wall jumps
-                character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(-385738752.);
-                character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(0.15);  // default value
-            }
-            
-        }
-        if ledge_grab >= 0 {
-            if ledge_grab == 0 {  // no ledge grab
-                character.get_field("MaxClimbWallAngle").unwrap::<&Cell<f32>>().set(-385738752.);
-            } else {  // yes ledge grab
-                character.get_field("MaxClimbWallAngle").unwrap::<&Cell<f32>>().set(-0.5);  // default value
-            }
+        if wall_jump == 0 {  // no wall jump
+            character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(385738752.);
+            character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(385738752.);
+        } else if wall_jump == 1 {  // just one wall jump
+            character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(-385738752.);
+            character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(1.);
+        } else{  // infinite wall jumps
+            character.get_field("LastWallJumpTime").unwrap::<&Cell<f32>>().set(-385738752.);
+            character.get_field("MinWallJumpInterval").unwrap::<&Cell<f32>>().set(0.15);  // default value
         }
 
+        if change_physics {
+            character.get_field("MinForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(-0.8);
+            character.get_field("MinWallJumpAngleDiff").unwrap::<&Cell<f32>>().set(0.8);
+            character.get_field("MaxForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(0.8);
+        } else {
+            character.get_field("MinForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(-0.5);
+            character.get_field("MinWallJumpAngleDiff").unwrap::<&Cell<f32>>().set(0.5);
+            character.get_field("MaxForcedWallJumpAngle").unwrap::<&Cell<f32>>().set(0.5);
+        }
     }
 }
+#[rebo::function("Tas::abilities_set_ledge_grab")]
+fn abilities_set_ledge_grab(ledge_grab: bool) {
+    log!("Archipelago: setting ledge grab to {}", ledge_grab);
+    unsafe {
+        let character = ObjectWrapper::new(AMyCharacter::get_player().as_ptr() as *mut UObject);
+        if !ledge_grab {  // no ledge grab
+            character.get_field("MaxClimbWallAngle").unwrap::<&Cell<f32>>().set(-385738752.);
+        } else {  // yes ledge grab
+            character.get_field("MaxClimbWallAngle").unwrap::<&Cell<f32>>().set(-0.5);  // default value
+        }
+    }
+}
+
 #[rebo::function("Tas::archipelago_trigger_goal_animation")]
 fn archipelago_trigger_goal_animation() {
     log!("Archipelago: triggering goal animation");

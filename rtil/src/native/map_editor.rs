@@ -3,7 +3,7 @@ use std::fmt::{Formatter, Pointer};
 use std::ops::Deref;
 use std::sync::Mutex;
 use std::ptr;
-use crate::native::{ArrayWrapper, ObjectIndex, StructValueWrapper, UeObjectWrapperType, UeScope, UObject, ObjectWrapper, ClassWrapper, UWorld, DynamicValue, BoolValueWrapper, DerefToObjectWrapper, AMyCharacter};
+use crate::native::{ArrayWrapper, ObjectIndex, StructValueWrapper, UeObjectWrapperType, UeScope, UObject, ObjectWrapper, ClassWrapper, UWorld, DynamicValue, BoolValueWrapper, DerefToObjectWrapper, AMyCharacter, BoolPropertyWrapper};
 use crate::native::reflection::{AActor, ActorWrapper, UeObjectWrapper};
 use crate::native::ue::{FRotator, FVector, FName};
 use crate::native::uworld::{ESpawnActorCollisionHandlingMethod, ESpawnActorNameMode, FActorSpawnParameters};
@@ -203,17 +203,6 @@ impl<'a> CubeWrapper<'a> {
         self.set_hidden(false);
     }
 
-    pub fn set_hidden(&self, hidden: bool) {
-        let set_hidden = self.base.class()
-            .find_function("SetActorHiddenInGame")
-            .unwrap();
-
-        let params = set_hidden.create_argument_struct();
-        params.get_field("bNewHidden").unwrap::<BoolValueWrapper>().set(hidden);
-
-        unsafe { set_hidden.call(self.base.as_ptr(), &params); }
-    }
-
     pub fn is_picked_up(&self) -> bool {
         self.base.get_field("IsPickedUp").unwrap::<BoolValueWrapper>()._get()
     }
@@ -243,10 +232,6 @@ impl<'a> CubeWrapper<'a> {
 
         self.set_picked_up(true);
         self.set_hidden(true);
-    }
-
-    pub fn set_collision(&self, enabled: bool) {
-        AActor::set_actor_enable_collision(self.base.as_ptr(), enabled);
     }
 
     pub fn set_color(&self, r: f32, g: f32, b: f32) {
@@ -442,8 +427,53 @@ impl<'a> ButtonWrapper<'a> {
 }
 #[derive(Debug, Clone)]
 pub struct LiftWrapper<'a> {
+    original_play_rate: f32,
     base: ActorWrapper<'a>,
 }
+
+impl<'a> LiftWrapper<'a> {
+    pub fn set_enabled(&self, enabled: bool) {
+        if enabled {
+            self.set_speed(1014.6428);
+            self.set_play_rate(self.original_play_rate);
+        } else {
+            self.set_speed(0.0);
+            self.set_play_rate(0.0);
+            self.reset_playback_position();
+        }
+    }
+
+    fn set_speed(&self, new_speed: f32) {
+        self.get_field("Speed").unwrap::<&Cell<f32>>().set(new_speed);
+    }
+
+    fn set_play_rate(&self, new_play_rate: f32) {
+        let lift_mover: ObjectWrapper = self.get_field("LiftMover").unwrap();
+        let set_play_rate = lift_mover.class()
+            .find_function("SetPlayRate")
+            .unwrap();
+
+        let params = set_play_rate.create_argument_struct();
+        params.get_field("NewRate").unwrap::<&Cell<f32>>().set(new_play_rate);
+
+        unsafe { set_play_rate.call(lift_mover.as_ptr(), &params); }
+    }
+
+    fn reset_playback_position(&self) {
+        let lift_mover: ObjectWrapper = self.get_field("LiftMover").unwrap();
+        let set_playback_position = lift_mover.class()
+            .find_function("SetPlaybackPosition")
+            .unwrap();
+
+        let params = set_playback_position.create_argument_struct();
+        params.get_field("NewPosition").unwrap::<&Cell<f32>>().set(0.0);
+        params.get_field("bFireEvents").unwrap::<BoolValueWrapper>().set(false);
+        params.get_field("bFireUpdate").unwrap::<BoolValueWrapper>().set(false);
+
+        unsafe { set_playback_position.call(lift_mover.as_ptr(), &params); }
+    }
+}
+
 pub enum LiftWrapperType {}
 impl UeObjectWrapperType for LiftWrapperType {
     type UeObjectWrapper<'a> = LiftWrapper<'a>;
@@ -472,13 +502,54 @@ impl<'a> Pointer for LiftWrapper<'a> {
 impl<'a> LiftWrapper<'a> {
     pub fn new(lift: ActorWrapper<'a>) -> LiftWrapper<'a> {
         assert_eq!(lift.class().name(), "BP_Lift_C");
-        LiftWrapper { base: lift }
+        let original_play_rate = match lift.name().as_str() {
+            "BP_Lift_C_1" => 0.5073214,
+            _ => 0.9019047,
+        };
+        LiftWrapper {
+            original_play_rate,
+            base: lift
+        }
     }
 }
 #[derive(Debug, Clone)]
 pub struct PipeWrapper<'a> {
     base: ActorWrapper<'a>,
 }
+
+impl<'a> PipeWrapper<'a> {
+    pub fn is_enabled(&self) -> bool {
+        let start_trigger: ObjectWrapper = self.get_field("StartTrigger").unwrap();
+
+        let get_collision_enabled = start_trigger.class()
+            .find_function("GetCollisionEnabled")
+            .unwrap();
+
+        let params = get_collision_enabled.create_argument_struct();
+
+        unsafe { get_collision_enabled.call(start_trigger.as_ptr(), &params) };
+
+        1 == params.get_field("ReturnValue").unwrap::<&Cell<u8>>().get()
+    }
+
+    pub fn set_enabled(&self, active: bool) {
+        let start_trigger: ObjectWrapper = self.get_field("StartTrigger").unwrap();
+        let end_trigger: ObjectWrapper = self.get_field("EndTrigger").unwrap();
+
+        let set_collision_enabled = start_trigger.class()
+            .find_function("SetCollisionEnabled")
+            .unwrap();
+
+        let params = set_collision_enabled.create_argument_struct();
+        params.get_field("NewType").unwrap::<&Cell<u8>>().set(if active { 1 } else { 0 });
+
+        unsafe {
+            set_collision_enabled.call(start_trigger.as_ptr(), &params);
+            set_collision_enabled.call(end_trigger.as_ptr(), &params);
+        }
+    }
+}
+
 pub enum PipeWrapperType {}
 impl UeObjectWrapperType for PipeWrapperType {
     type UeObjectWrapper<'a> = PipeWrapper<'a>;
