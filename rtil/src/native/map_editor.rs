@@ -3,7 +3,7 @@ use std::fmt::{Formatter, Pointer};
 use std::ops::Deref;
 use std::sync::Mutex;
 use std::ptr;
-use crate::native::{ArrayWrapper, ObjectIndex, StructValueWrapper, UeObjectWrapperType, UeScope, UObject, ObjectWrapper, ClassWrapper, UWorld, DynamicValue, BoolValueWrapper, DerefToObjectWrapper, AMyCharacter};
+use crate::native::{ArrayWrapper, ObjectIndex, StructValueWrapper, UeObjectWrapperType, UeScope, UObject, ObjectWrapper, ClassWrapper, UWorld, DynamicValue, BoolValueWrapper, DerefToObjectWrapper, AMyCharacter, BoolPropertyWrapper};
 use crate::native::reflection::{AActor, ActorWrapper, UeObjectWrapper};
 use crate::native::ue::{FRotator, FVector, FName};
 use crate::native::uworld::{ESpawnActorCollisionHandlingMethod, ESpawnActorNameMode, FActorSpawnParameters};
@@ -203,17 +203,6 @@ impl<'a> CubeWrapper<'a> {
         self.set_hidden(false);
     }
 
-    pub fn set_hidden(&self, hidden: bool) {
-        let set_hidden = self.base.class()
-            .find_function("SetActorHiddenInGame")
-            .unwrap();
-
-        let params = set_hidden.create_argument_struct();
-        params.get_field("bNewHidden").unwrap::<BoolValueWrapper>().set(hidden);
-
-        unsafe { set_hidden.call(self.base.as_ptr(), &params); }
-    }
-
     pub fn is_picked_up(&self) -> bool {
         self.base.get_field("IsPickedUp").unwrap::<BoolValueWrapper>()._get()
     }
@@ -243,10 +232,6 @@ impl<'a> CubeWrapper<'a> {
 
         self.set_picked_up(true);
         self.set_hidden(true);
-    }
-
-    pub fn set_collision(&self, enabled: bool) {
-        AActor::set_actor_enable_collision(self.base.as_ptr(), enabled);
     }
 
     pub fn set_color(&self, r: f32, g: f32, b: f32) {
@@ -479,6 +464,40 @@ impl<'a> LiftWrapper<'a> {
 pub struct PipeWrapper<'a> {
     base: ActorWrapper<'a>,
 }
+
+impl<'a> PipeWrapper<'a> {
+    pub fn is_enabled(&self) -> bool {
+        let start_trigger: ObjectWrapper = self.get_field("StartTrigger").unwrap();
+
+        let get_collision_enabled = start_trigger.class()
+            .find_function("GetCollisionEnabled")
+            .unwrap();
+
+        let params = get_collision_enabled.create_argument_struct();
+
+        unsafe { get_collision_enabled.call(start_trigger.as_ptr(), &params) };
+
+        1 == params.get_field("ReturnValue").unwrap::<&Cell<u8>>().get()
+    }
+
+    pub fn set_enabled(&self, active: bool) {
+        let start_trigger: ObjectWrapper = self.get_field("StartTrigger").unwrap();
+        let end_trigger: ObjectWrapper = self.get_field("EndTrigger").unwrap();
+
+        let set_collision_enabled = start_trigger.class()
+            .find_function("SetCollisionEnabled")
+            .unwrap();
+
+        let params = set_collision_enabled.create_argument_struct();
+        params.get_field("NewType").unwrap::<&Cell<u8>>().set(if active { 1 } else { 0 });
+
+        unsafe {
+            set_collision_enabled.call(start_trigger.as_ptr(), &params);
+            set_collision_enabled.call(end_trigger.as_ptr(), &params);
+        }
+    }
+}
+
 pub enum PipeWrapperType {}
 impl UeObjectWrapperType for PipeWrapperType {
     type UeObjectWrapper<'a> = PipeWrapper<'a>;
