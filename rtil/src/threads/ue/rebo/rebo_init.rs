@@ -1406,6 +1406,7 @@ pub fn maybe_remove_extra_cube(internal_index: i32) -> bool {
 
 #[rebo::function("Tas::abilities_set_pipes")]
 fn abilities_set_pipes(enabled: bool) {
+    log!("Archipelago: setting pipes to {}", enabled);
     UeScope::with(|scope| {
         for level in LEVELS.lock().unwrap().iter() {
             for pipe in level.pipes.iter() {
@@ -1417,6 +1418,7 @@ fn abilities_set_pipes(enabled: bool) {
 
 #[rebo::function("Tas::abilities_set_lifts")]
 fn abilities_set_lifts(enabled: bool) {
+    log!("Archipelago: setting lifts to {}", enabled);
     UeScope::with(|scope| {
         for level in LEVELS.lock().unwrap().iter() {
             for lift in level.lifts.iter() {
@@ -1443,6 +1445,7 @@ fn abilities_set_lifts(enabled: bool) {
 
 #[rebo::function("Tas::abilities_set_swim")]
 fn abilities_set_swim(enabled: bool) {
+    log!("Archipelago: setting swim to {}", enabled);
     if enabled {
         UWorld::set_kill_z(-6000.);
     }else{

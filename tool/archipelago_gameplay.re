@@ -6,7 +6,7 @@ struct ArchipelagoState {
     wall_jump: int,
     ledge_grab: bool,
     swim: bool,
-    jumppads: bool,
+    jump_pads: bool,
     pipes: bool,
     lifts: bool,
     required_grass: int,
@@ -62,7 +62,7 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         wall_jump: 0,
         ledge_grab: false,
         swim: false,
-        jumppads: false,
+        jump_pads: false,
         pipes: false,
         lifts: false,
         required_grass: 1000,
@@ -294,9 +294,9 @@ fn archipelago_process_item(item_id: int, starting_index: int, item_index: int) 
             ARCHIPELAGO_STATE.swim = true;
             Tas::abilities_set_swim(true);
         }
-        if item_id == 9999993 {  // Jumppads
-            // log("Received Jumppads!");
-            ARCHIPELAGO_STATE.jumppads = true;
+        if item_id == 9999993 {  // jump_pads
+            // log("Received jump_pads!");
+            ARCHIPELAGO_STATE.jump_pads = true;
             Tas::abilities_set_jump_pads(true);
         }
         if item_id == 9999994 {  // Pipes
@@ -471,7 +471,7 @@ fn archipelago_main_start(){
     ARCHIPELAGO_STATE.wall_jump = 0;
     ARCHIPELAGO_STATE.ledge_grab = false;
     ARCHIPELAGO_STATE.swim = false;
-    ARCHIPELAGO_STATE.jumppads = false;
+    ARCHIPELAGO_STATE.jump_pads = false;
 
     ARCHIPELAGO_STATE.triggered_clusters = List::new();
     ARCHIPELAGO_STATE.has_goaled = false;
