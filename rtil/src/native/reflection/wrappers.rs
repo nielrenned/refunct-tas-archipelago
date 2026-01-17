@@ -927,6 +927,21 @@ impl<'a> ActorWrapper<'a> {
             extent.get_field("X").unwrap(), extent.get_field("Y").unwrap(), extent.get_field("Z").unwrap(),
         )
     }
+    
+    pub fn set_collision(&self, collision: bool) {
+        AActor::set_actor_enable_collision(self.as_ptr(), collision);
+    }
+
+    pub fn set_hidden(&self, hidden: bool) {
+        let set_hidden = self.base.class()
+            .find_function("SetActorHiddenInGame")
+            .unwrap();
+
+        let params = set_hidden.create_argument_struct();
+        params.get_field("bNewHidden").unwrap::<BoolValueWrapper>().set(hidden);
+
+        unsafe { set_hidden.call(self.base.as_ptr(), &params); }
+    }
 }
 
 
