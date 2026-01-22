@@ -754,9 +754,9 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                     archipelago_print_json_message(vm, ReboPrintJSONMessage::from(&json))?;
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::DataPackage(pkg))) => {
-                    log!("DataPackage message");
-                    let msg = format!("Archipelago ServerMessage::DataPackage: {:?}", pkg);
-                    log!("{}", msg);
+                    // log!("DataPackage message");
+                    // let msg = format!("Archipelago ServerMessage::DataPackage: {:?}", pkg);
+                    // log!("{}", msg);
 
                     for (game_name, game_data) in pkg.data.games {
                         for (item_name, item_id) in game_data.item_name_to_id {
@@ -1670,6 +1670,7 @@ fn archipelago_send_death() {
 #[rebo::function(raw("Tas::archipelago_send_check"))]
 fn archipelago_send_check(location_id: i64) {
     // if location_id is already in STATE.checked_locations, do nothing
+    log!("Archipelago: sending location check for {}", location_id);
     if !STATE.lock().unwrap().as_ref().unwrap().archipelago_checks_sent.contains(&location_id) {
         log!("Current checked locations: {:?}", STATE.lock().unwrap().as_ref().unwrap().archipelago_checks_sent);
         STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
@@ -1681,7 +1682,8 @@ fn archipelago_send_check(location_id: i64) {
         let state = state.as_mut().unwrap();
         state.archipelago_checks_sent.insert(location_id);
 
-        log!("Archipelago: sent check for location {}", location_id);
+    } else {
+        log!("Did not send because it was already sent before.");
     }
 
 }
