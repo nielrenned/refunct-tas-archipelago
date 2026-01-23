@@ -518,6 +518,7 @@ pub struct PipeWrapper<'a> {
 }
 
 impl<'a> PipeWrapper<'a> {
+    #[allow(unused)]
     pub fn is_enabled(&self) -> bool {
         let start_trigger: ObjectWrapper = self.get_field("StartTrigger").unwrap();
 
