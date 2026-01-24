@@ -688,9 +688,6 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                         archipelago_checked_location(vm,
                             value as usize,
                         )?;
-                        let mut state = STATE.lock().unwrap();
-                        let state = state.as_mut().unwrap();
-                        state.archipelago_checks_sent.insert(value);
                     }
 
                     for (key, value) in info.slot_data.as_object().unwrap() {
@@ -748,9 +745,6 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                     for loc in info.checked_locations.unwrap_or_default() {
                         let value: i64 = loc;
                         archipelago_checked_location(vm, value as usize)?;
-                        let mut state = STATE.lock().unwrap();
-                        let state = state.as_mut().unwrap();
-                        state.archipelago_checks_sent.insert(value);
                     }
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::Print(text))) => {
@@ -1497,14 +1491,15 @@ fn set_cube_collision(internal_index: i32, collision_enabled: bool) {
 }
 
 #[rebo::function("Tas::set_cube_color")]
-fn set_cube_color_rebo(internal_index: i32, c: Color) {
-    set_cube_color(internal_index, c);
+fn set_cube_color_rebo(internal_index: i32, c: Color) -> i32 {
+    set_cube_color(internal_index, c)
 }
 
-fn set_cube_color(internal_index: i32, c: Color) {
+fn set_cube_color(internal_index: i32, c: Color) -> i32 {
     // Sadly alpha seems to be ignored, so we're just going to silently drop it
     find_cube_and(internal_index, |cube| cube.set_color(c.red, c.green, c.blue))
         .unwrap_or_else(|e| log!("Could not set color for cube {:?}: {}", internal_index, e));
+    internal_index
 }
 
 #[rebo::function("Tas::set_cube_color_random")]
@@ -1529,9 +1524,10 @@ fn set_cube_location(internal_index: i32, loc: Location) {
 }
 
 #[rebo::function("Tas::set_cube_scale")]
-fn set_cube_scale(internal_index: i32, s: f32) {
+fn set_cube_scale(internal_index: i32, s: f32) -> i32 {
     find_cube_and(internal_index, |cube| cube.set_scale(s))
         .unwrap_or_else(|e| log!("Could not set scale for cube {:?}: {}", internal_index, e));
+    internal_index
 }
 
 #[rebo::function("Tas::collect_cube")]
@@ -1829,21 +1825,13 @@ fn archipelago_send_death() {
 fn archipelago_send_check(location_id: i64) {
     // if location_id is already in STATE.checked_locations, do nothing
     log!("Archipelago: sending location check for {}", location_id);
-    if !STATE.lock().unwrap().as_ref().unwrap().archipelago_checks_sent.contains(&location_id) {
-        log!("Current checked locations: {:?}", STATE.lock().unwrap().as_ref().unwrap().archipelago_checks_sent);
-        STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
-            .send(ReboToArchipelago::LocationChecks { locations: vec![location_id] })
-            .unwrap();
+    STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
+        .send(ReboToArchipelago::LocationChecks { locations: vec![location_id] })
+        .unwrap();
 
-        // add location_id to STATE.checked_locations
-        let mut state = STATE.lock().unwrap();
-        let state = state.as_mut().unwrap();
-        state.archipelago_checks_sent.insert(location_id);
-
-    } else {
-        log!("Did not send because it was already sent before.");
-    }
-
+    // add location_id to STATE.checked_locations
+    let mut state = STATE.lock().unwrap();
+    let state = state.as_mut().unwrap();
 }
 #[rebo::function(raw("Tas::archipelago_goal"))]
 fn archipelago_goal() {

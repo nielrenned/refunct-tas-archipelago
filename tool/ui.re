@@ -243,6 +243,8 @@ fn on_menu_open() {
 
 static COLOR_BLACK = Color { red: 0., green: 0., blue: 0., alpha: 1. };
 static COLOR_RED = Color { red: 1., green: 0., blue: 0., alpha: 1. };
+static COLOR_GREEN = Color { red: 0., green: 1., blue: 0., alpha: 1. };
+static COLOR_YELLOW = Color { red: 1., green: 1., blue: 0., alpha: 1. };
 static COLOR_WHITE = Color { red: 1., green: 1., blue: 1., alpha: 1. };
 static COLOR_BLUE = Color { red: 0., green: 0., blue: 1., alpha: 1. };
 
