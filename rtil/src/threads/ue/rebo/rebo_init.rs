@@ -29,6 +29,7 @@ use crate::threads::ue::iced_ui::rebo_elements::{IcedButton, IcedColumn, IcedEle
 
 use crate::native::{BoolValueWrapper};
 use crate::native::reflection::DerefToObjectWrapper;
+use crate::native::font::replace_unrenderable_chars;
 
 pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
     let mut cfg = ReboConfig::new()
@@ -1159,7 +1160,8 @@ struct DrawText {
 #[rebo::function("Tas::draw_text")]
 fn draw_text(text: DrawText) {
     let color = (text.color.red, text.color.green, text.color.blue, text.color.alpha);
-    AMyHud::draw_text(text.text, color, text.x, text.y, text.scale, text.scale_position);
+    let render_text = replace_unrenderable_chars(text.text);
+    AMyHud::draw_text(render_text, color, text.x, text.y, text.scale, text.scale_position);
 }
 #[rebo::function("Tas::draw_rect")]
 fn draw_rect(color: Color, x: f32, y: f32, width: f32, height: f32) {

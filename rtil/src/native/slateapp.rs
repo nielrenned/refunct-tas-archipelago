@@ -173,7 +173,6 @@ mod windows_utf16 {
 }
 
 fn on_key_char_hook<IA: IsaAbi>(hook: &TypedHook<IA, fn(*mut FSlateApplicationUE, TCHAR, bool), ()>, this: *mut FSlateApplicationUE, character: TCHAR, is_repeat: bool) {
-    // For now, on windows, we'll ignore utf-16 surrogate pairs. It's very unlikely we'll ever encounter them.
     #[cfg(windows)]
     let ch = windows_utf16::tchar_to_char(character);
 
