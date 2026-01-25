@@ -585,6 +585,13 @@ fn create_archipelago_gamemodes_menu() -> Ui {
             },
         }),
         UiElement::Button(UiButton {
+            label: Text { text: "Block Brawl" },
+            onclick: fn(label: Text) { 
+                archipelago_init(5); 
+                leave_ui(); 
+            },
+        }),
+        UiElement::Button(UiButton {
             label: Text { text: "Back" },
             onclick: fn(label: Text) { leave_ui(); },
         }),
@@ -624,6 +631,26 @@ fn get_status_text_lines() -> List<ColorfulText> {
                 ColorfulText { text: "Archipelago - OG Randomizer\n", color: COLOR_WHITE },
                 ColorfulText { text: "Goal: Press the buttons!", color: AP_COLOR_CYAN },
                 ColorfulText { text: f"\nProgress: {ARCHIPELAGO_STATE.progress_OG_randomizer_minigame}", color: COLOR_WHITE },
+            ),
+            5 => List::of(
+                ColorfulText { text: "Archipelago - Block Brawl\n", color: COLOR_WHITE },
+                ColorfulText { text: "Goal: cubes => points => checks!", color: AP_COLOR_GREEN },
+                ColorfulText { text: f"\n\nNew game => new layout + cubes\nScores will be saved", color: COLOR_WHITE},
+
+                ColorfulText { text: f"\n\nCurrent scores: ", color: COLOR_WHITE },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.score_block_brawl_reds:3} ", color: AP_COLOR_RED },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.score_block_brawl_blues:3} ", color: AP_COLOR_CYAN },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.score_block_brawl_greens:3} ", color: AP_COLOR_GREEN },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.score_block_brawl_yellows:3} ", color: AP_COLOR_YELLOW },
+
+                ColorfulText { text: f"\nScore in logic: ", color: COLOR_WHITE },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.in_logic_block_brawl_reds:3} ", color: AP_COLOR_RED },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.in_logic_block_brawl_blues:3} ", color: AP_COLOR_CYAN },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.in_logic_block_brawl_greens:3} ", color: AP_COLOR_GREEN },
+                ColorfulText { text: f"{ARCHIPELAGO_STATE.in_logic_block_brawl_yellows:3} ", color: AP_COLOR_YELLOW },
+                ColorfulText { text: f"\nCubes collected: {ARCHIPELAGO_STATE.block_brawl_cubes_collected} / {ARCHIPELAGO_STATE.block_brawl_cubes_total}", color: COLOR_WHITE },
+
+                ColorfulText { text: f"\nCombo: next cube is worth {ARCHIPELAGO_STATE.score_for_next_block} pts", color: COLOR_WHITE },
             ),
             _ => List::of(
                 ColorfulText { text: "Archipelago\n", color: COLOR_WHITE },
@@ -736,6 +763,17 @@ fn get_move_rando_status_lines() -> List<ColorfulText> {
         }
         lines.push(ColorfulText {
             text:  "\nOG Randomizer",
+            color: AP_COLOR_GREEN
+        });
+        added_minigame_header = true;
+    }
+
+    if ARCHIPELAGO_STATE.block_brawl_check_in_logic > 0 {
+        if !added_minigame_header {
+            lines.push(ColorfulText { text: "\n\nMinigames with Checks", color: COLOR_WHITE });
+        }
+        lines.push(ColorfulText {
+            text:  f"\nBlock Brawl: {ARCHIPELAGO_STATE.block_brawl_check_in_logic} in logic",
             color: AP_COLOR_GREEN
         });
         added_minigame_header = true;

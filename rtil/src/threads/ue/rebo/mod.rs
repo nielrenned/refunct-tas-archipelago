@@ -47,6 +47,7 @@ struct State {
     pressed_keys: HashSet<i32>,
     websocket: Option<Client<Box<dyn NetworkStream + Send>>>,
     local_time_offset: i32,
+    extra_platforms: Vec<i32>,
     extra_cubes: Vec<i32>,
     pawns: HashMap<u32, AMyCharacter>,
     pawn_id: u32,
@@ -55,8 +56,6 @@ struct State {
     player_minimap_image: RgbaImage,
     // will keep textures forever, even if the player doesn't exist anymore, but each texture is only a few MB
     player_minimap_textures: HashMap<Rgba<u8>, UTexture2D>,
-
-    archipelago_checks_sent: HashSet<i64>,
 }
 
 pub(super) fn poll(event: UeEvent) {
@@ -172,6 +171,7 @@ pub fn init(
         pressed_keys: HashSet::new(),
         websocket: None,
         local_time_offset: 0,
+        extra_platforms: Vec::new(),
         extra_cubes: Vec::new(),
         pawns: HashMap::new(),
         pawn_id: 0,
@@ -179,8 +179,6 @@ pub fn init(
         minimap_image,
         player_minimap_image,
         player_minimap_textures: HashMap::new(),
-
-        archipelago_checks_sent: HashSet::new(),
     });
 }
 

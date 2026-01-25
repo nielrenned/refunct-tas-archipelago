@@ -13,10 +13,10 @@ use rebo::{DisplayValue, ExecError, IncludeConfig, Map, Output, ReboConfig, Span
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use websocket::{ClientBuilder, Message, OwnedMessage, WebSocketError};
-use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, CubeWrapper};
+use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, CubeWrapper, PlatformWrapper};
 use crate::native::{try_find_element_index, ue::FVector, AActor, ALiftBaseUE, AMyCharacter, AMyHud, ActorWrapper, EBlendMode, FApp, FViewport, KismetSystemLibrary, Level, LevelState, LevelWrapper, ObjectIndex, ObjectWrapper, UGameplayStatics, UMyGameInstance, UObject, UTexture2D, UWorld, UeObjectWrapperType, UeScope, LEVELS};
 use protocol::{Request, Response};
-use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo, archipelago};
+use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
 use super::{STATE, livesplit::{Game, NewGameGlitch, SplitsSaveError, SplitsLoadError}};
 use serde::{Serialize, Deserialize};
 use crate::threads::ue::{Suspend, UeEvent, rebo::YIELDER};
@@ -29,7 +29,7 @@ use crate::threads::ue::iced_ui::rebo_elements::{IcedButton, IcedColumn, IcedEle
 
 use crate::native::{BoolValueWrapper};
 use crate::native::reflection::DerefToObjectWrapper;
-use std::time::SystemTime;
+use crate::native::font::replace_unrenderable_chars;
 
 pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
     let mut cfg = ReboConfig::new()
@@ -89,18 +89,28 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(project)
         .add_function(get_viewport_size)
         .add_function(get_text_size)
-        .add_function(spawn_cube)
+
+        .add_function(spawn_platform_rebo)
+        .add_function(spawn_platform_rando_location)
+        .add_function(spawn_cube_rando_location)
+        .add_function(destroy_platforms)
+        .add_function(destroy_platform_rebo)
+
+        .add_function(spawn_cube_rebo)
         .add_function(reset_cubes)
+        .add_function(destroy_cubes)
         .add_function(collect_cube)
         .add_function(get_vanilla_cube)
         .add_function(set_cube_collision)
-        .add_function(set_cube_color)
+        .add_function(set_cube_color_rebo)
         .add_function(set_cube_color_random)
         .add_function(set_cube_location)
         .add_function(set_cube_scale)
         .add_function(get_vanilla_cubes)
         .add_function(get_non_vanilla_cubes)
+        .add_function(get_non_vanilla_platforms_rebo)
         .add_function(get_all_cubes)
+
         .add_function(spawn_pawn)
         .add_function(destroy_pawn)
         .add_function(move_pawn)
@@ -112,20 +122,22 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(move_on_server)
         .add_function(press_platform_on_server)
         .add_function(press_button_on_server)
+
         .add_function(archipelago_connect)
         .add_function(archipelago_disconnect)
         .add_function(archipelago_send_check)
         .add_function(archipelago_goal)
         .add_function(new_game_pressed)
         .add_function(get_level)
-        .add_function(set_level)
+        .add_function(set_level_rebo)
         .add_function(trigger_element)
-        .add_function(trigger_element_by_type)
+        .add_function(trigger_element_by_type_rebo)
         .add_function(archipelago_activate_buttons_ap)
         .add_function(archipelago_deactivate_buttons_ap)
         .add_function(archipelago_gather_all_buttons)
         .add_function(archipelago_trigger_goal_animation)
-        .add_function(archipelago_raise_cluster)
+        .add_function(archipelago_raise_cluster_rebo)
+
         .add_function(abilities_set_wall_jump)
         .add_function(abilities_set_ledge_grab)
         .add_function(abilities_set_jump_pads)
@@ -266,6 +278,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_required_rebo_function(element_released)
         .add_required_rebo_function(on_key_down)
         .add_required_rebo_function(on_key_up)
+        .add_required_rebo_function(on_key_char)
         .add_required_rebo_function(on_mouse_move)
         .add_required_rebo_function(draw_hud)
         .add_required_rebo_function(player_joined_multiplayer_room)
@@ -568,6 +581,7 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                 let key = STATE.lock().unwrap().as_mut().unwrap().ui.key_released(key);
                 on_key_up(vm, key.raw_key_code, key.raw_character_code, repeat)?
             },
+            UeEvent::KeyChar(character, repeat) => on_key_char(vm, character.to_string(), repeat)?,
             UeEvent::MouseMove(x, y) => {
                 let (absx, absy) = AMyCharacter::get_mouse_position();
                 STATE.lock().unwrap().as_mut().unwrap().ui.mouse_moved(absx as u32, absy as u32);
@@ -627,7 +641,7 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
 
         // check archipelago
         loop {
-            let mut res = STATE.lock().unwrap().as_mut().unwrap().archipelago_rebo_rx.try_recv();
+            let res = STATE.lock().unwrap().as_mut().unwrap().archipelago_rebo_rx.try_recv();
             match res {
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => panic!("archipelago_rebo_rx became disconnected"),
@@ -676,9 +690,6 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                         archipelago_checked_location(vm,
                             value as usize,
                         )?;
-                        let mut state = STATE.lock().unwrap();
-                        let state = state.as_mut().unwrap();
-                        state.archipelago_checks_sent.insert(value);
                     }
 
                     for (key, value) in info.slot_data.as_object().unwrap() {
@@ -736,9 +747,6 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                     for loc in info.checked_locations.unwrap_or_default() {
                         let value: i64 = loc;
                         archipelago_checked_location(vm, value as usize)?;
-                        let mut state = STATE.lock().unwrap();
-                        let state = state.as_mut().unwrap();
-                        state.archipelago_checks_sent.insert(value);
                     }
                 },
                 Ok(ArchipelagoToRebo::ServerMessage(ServerMessage::Print(text))) => {
@@ -822,6 +830,7 @@ extern "rebo" {
     fn element_released(index: ElementIndex);
     fn on_key_down(key_code: i32, character_code: u32, is_repeat: bool);
     fn on_key_up(key_code: i32, character_code: u32, is_repeat: bool);
+    fn on_key_char(character: String, is_repeat: bool);
     fn on_mouse_move(x: i32, y: i32);
     fn draw_hud();
     fn player_joined_multiplayer_room(id: u32, name: String, col: Color, loc: Location, rot: Rotation);
@@ -1157,7 +1166,8 @@ struct DrawText {
 #[rebo::function("Tas::draw_text")]
 fn draw_text(text: DrawText) {
     let color = (text.color.red, text.color.green, text.color.blue, text.color.alpha);
-    AMyHud::draw_text(text.text, color, text.x, text.y, text.scale, text.scale_position);
+    let render_text = replace_unrenderable_chars(text.text);
+    AMyHud::draw_text(render_text, color, text.x, text.y, text.scale, text.scale_position);
 }
 #[rebo::function("Tas::draw_rect")]
 fn draw_rect(color: Color, x: f32, y: f32, width: f32, height: f32) {
@@ -1256,7 +1266,64 @@ fn get_viewport_size() -> Size {
     Size { width, height }
 }
 
+#[rebo::function("Tas::spawn_platform_rando_location")]
+fn spawn_platform_rando_location(max: f32) -> i32 {
+    let rx = rand::random::<f32>();
+    let ry = rand::random::<f32>();
+    let rz = rand::random::<f32>();
+    let loc = Location { x: (rx-0.5) * 2. * max as f32, y: (ry-0.5) * 2. * max as f32, z: rz * max as f32 };
+    spawn_platform(loc)
+}
+#[rebo::function("Tas::spawn_cube_rando_location")]
+fn spawn_cube_rando_location(max: f32, spawn_platform_below: bool) -> i32 {
+    let rx = rand::random::<f32>();
+    let ry = rand::random::<f32>();
+    let rz = rand::random::<f32>();
+    let loc = Location { x: (rx-0.5) * 2. * max as f32, y: (ry-0.5) * 2. * max as f32, z: rz * max as f32 };
+    if spawn_platform_below {
+        let mut platform_loc = loc;
+        platform_loc.x -= 125.;
+        platform_loc.y -= 125.;
+        platform_loc.z -= 250.;
+        spawn_platform(platform_loc); // this id won't be returned
+    }
+    spawn_cube(loc)
+}
+
+#[rebo::function("Tas::spawn_platform")]
+fn spawn_platform_rebo(loc: Location) -> i32 {
+    spawn_platform(loc)
+}
+fn spawn_platform(loc: Location) -> i32 {
+    match crate::native::PlatformWrapper::spawn(loc.x, loc.y, loc.z) {
+        Ok(platform) => {
+            let index = platform.internal_index();
+            STATE.lock().unwrap().as_mut().unwrap().extra_platforms.push(index);
+            log!("Successfully spawned platform at {:p} with internal index {}", platform.as_ptr(), index);
+            index
+        }
+        Err(e) => {
+            panic!("Failed to spawn platform: {}", e);
+        }
+    }
+}
+
+#[rebo::function("Tas::destroy_platforms")]
+fn destroy_platforms(vanilla: bool, extra: bool) {
+    if vanilla {
+        // don't :)
+    }
+    if extra {
+        let non_vanilla_platforms = get_non_vanilla_platforms();
+        for p in non_vanilla_platforms {
+            destroy_platform(p);
+        }
+    }
+}
 #[rebo::function("Tas::spawn_cube")]
+fn spawn_cube_rebo(loc: Location) -> i32 {
+    spawn_cube(loc)
+}
 fn spawn_cube(loc: Location) -> i32 {
     match CubeWrapper::spawn(loc.x, loc.y, loc.z) {
         Ok(cube) => {
@@ -1270,6 +1337,8 @@ fn spawn_cube(loc: Location) -> i32 {
         }
     }
 }
+
+
 
 fn get_uncollected_vanilla_cubes() -> Vec<i32> {
     UeScope::with(|scope| {
@@ -1301,13 +1370,62 @@ fn get_uncollected_extra_cubes() -> Vec<i32> {
         .collect::<Vec<i32>>()
 }
 
+fn get_non_vanilla_platforms() -> Vec<i32> {
+    let state = STATE.lock().unwrap();
+
+    state.as_ref().unwrap()
+        .extra_platforms.iter()
+        .filter_map(|&platform_index| {
+            match find_platform_and(platform_index, |_platform| ()) {
+                Ok(_) => Some(platform_index),
+                Err(_) => None,
+            }
+        })
+        .collect::<Vec<i32>>()
+}
+
 #[rebo::function("Tas::reset_cubes")]
-fn reset_cubes() {
-    UeScope::with(|scope| {
-        LEVELS.lock().unwrap().iter().for_each(|level| {
-            level.cubes.iter().for_each(|cube| scope.get(cube).reset());
+fn reset_cubes(vanilla: bool, extra: bool) {
+    if vanilla {
+        UeScope::with(|scope| {
+            LEVELS.lock().unwrap().iter().for_each(|level| {
+                level.cubes.iter().for_each(|cube| scope.get(cube).reset());
+            });
         });
-    });
+    }
+    if extra {
+        let extra_cubes = get_uncollected_extra_cubes();
+        log!("Resetting extra cubes: {:?}", extra_cubes);
+        for c in extra_cubes {
+            maybe_remove_extra_cube(c);
+            find_cube_and(c, |cube| cube.reset())
+                .unwrap_or_else(|e| log!("Could not reset cube {:?}: {}", c, e));
+        }
+    }
+}
+
+#[rebo::function("Tas::destroy_cubes")]
+fn destroy_cubes(vanilla: bool, extra: bool) {
+    if vanilla {
+        UeScope::with(|scope| {
+            LEVELS.lock().unwrap().iter().for_each(|level| {
+                level.cubes.iter().for_each(|cube| {
+                    let cube = scope.get(cube);
+                    cube.pickup();
+                    cube.set_color(0., 0., 0.);
+                });
+            });
+        });
+    }
+    if extra {
+        let extra_cubes = get_uncollected_extra_cubes();
+        log!("Destroying extra cubes: {:?}", extra_cubes);
+        for c in extra_cubes {
+            maybe_remove_extra_cube(c);
+            find_cube_and(c, |cube| cube._destroy())
+                .unwrap_or_else(|e| log!("Could not reset cube {:?}: {}", c, e));
+        }
+    }
 }
 
 #[rebo::function("Tas::get_vanilla_cubes")]
@@ -1319,7 +1437,10 @@ fn get_vanilla_cubes() -> Vec<i32> {
 fn get_non_vanilla_cubes() -> Vec<i32> {
     get_uncollected_extra_cubes()
 }
-
+#[rebo::function("Tas::get_non_vanilla_platforms")]
+fn get_non_vanilla_platforms_rebo() -> Vec<i32> {
+    get_non_vanilla_platforms()
+}
 #[rebo::function("Tas::get_all_cubes")]
 fn get_all_cubes() -> Vec<i32> {
     let mut cubes = get_uncollected_vanilla_cubes();
@@ -1336,6 +1457,18 @@ fn find_cube_and<R: 'static, F: FnOnce(&CubeWrapper) -> R>(internal_index: i32, 
         match item.object().try_upcast::<CubeWrapper>() {
             Some(cube) => Ok(f(&cube)),
             None => Err(format!("Failed to find cube {}", internal_index))
+        }
+    })
+}
+
+fn find_platform_and<R: 'static, F: FnOnce(&PlatformWrapper) -> R>(internal_index: i32, f: F) -> Result<R, String> {
+    UeScope::with(|scope| {
+        let item = scope.object_array().try_get(internal_index)
+            .ok_or_else(|| format!("Failed to find platform at index {}", internal_index))?;
+
+        match item.object().try_upcast::<PlatformWrapper>() {
+            Some(platform) => Ok(f(&platform)),
+            None => Err(format!("Failed to find platform {}", internal_index))
         }
     })
 }
@@ -1362,10 +1495,15 @@ fn set_cube_collision(internal_index: i32, collision_enabled: bool) {
 }
 
 #[rebo::function("Tas::set_cube_color")]
-fn set_cube_color(internal_index: i32, c: Color) {
+fn set_cube_color_rebo(internal_index: i32, c: Color) -> i32 {
+    set_cube_color(internal_index, c)
+}
+
+fn set_cube_color(internal_index: i32, c: Color) -> i32 {
     // Sadly alpha seems to be ignored, so we're just going to silently drop it
     find_cube_and(internal_index, |cube| cube.set_color(c.red, c.green, c.blue))
         .unwrap_or_else(|e| log!("Could not set color for cube {:?}: {}", internal_index, e));
+    internal_index
 }
 
 #[rebo::function("Tas::set_cube_color_random")]
@@ -1390,22 +1528,43 @@ fn set_cube_location(internal_index: i32, loc: Location) {
 }
 
 #[rebo::function("Tas::set_cube_scale")]
-fn set_cube_scale(internal_index: i32, s: f32) {
+fn set_cube_scale(internal_index: i32, s: f32) -> i32 {
     find_cube_and(internal_index, |cube| cube.set_scale(s))
         .unwrap_or_else(|e| log!("Could not set scale for cube {:?}: {}", internal_index, e));
+    internal_index
 }
 
 #[rebo::function("Tas::collect_cube")]
-fn collect_cube(internal_index: i32) {
+fn collect_cube(internal_index: i32) -> i32 {
     maybe_remove_extra_cube(internal_index);
     find_cube_and(internal_index, |cube| cube.pickup())
         .unwrap_or_else(|e| log!("Could not pickup cube {:?}: {}", internal_index, e));
+    internal_index 
+}
+#[rebo::function("Tas::destroy_platform")]
+fn destroy_platform_rebo(internal_index: i32) {
+    destroy_platform(internal_index);
+}
+
+fn destroy_platform(internal_index: i32) {
+    maybe_remove_extra_platform(internal_index);
+    let _ = find_platform_and(internal_index, |platform| platform.destroy());
 }
 
 pub fn maybe_remove_extra_cube(internal_index: i32) -> bool {
     if let Some(state) = STATE.lock().unwrap().as_mut() {
         if let Some(pos) = state.extra_cubes.iter().position(|i| *i == internal_index) {
             state.extra_cubes.remove(pos);
+            return true;
+        }
+    }
+    false
+}
+
+pub fn maybe_remove_extra_platform(internal_index: i32) -> bool {
+    if let Some(state) = STATE.lock().unwrap().as_mut() {
+        if let Some(pos) = state.extra_platforms.iter().position(|i| *i == internal_index) {
+            state.extra_platforms.remove(pos);
             return true;
         }
     }
@@ -1671,21 +1830,9 @@ fn archipelago_send_death() {
 fn archipelago_send_check(location_id: i64) {
     // if location_id is already in STATE.checked_locations, do nothing
     log!("Archipelago: sending location check for {}", location_id);
-    if !STATE.lock().unwrap().as_ref().unwrap().archipelago_checks_sent.contains(&location_id) {
-        log!("Current checked locations: {:?}", STATE.lock().unwrap().as_ref().unwrap().archipelago_checks_sent);
-        STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
-            .send(ReboToArchipelago::LocationChecks { locations: vec![location_id] })
-            .unwrap();
-
-        // add location_id to STATE.checked_locations
-        let mut state = STATE.lock().unwrap();
-        let state = state.as_mut().unwrap();
-        state.archipelago_checks_sent.insert(location_id);
-
-    } else {
-        log!("Did not send because it was already sent before.");
-    }
-
+    STATE.lock().unwrap().as_ref().unwrap().rebo_archipelago_tx
+        .send(ReboToArchipelago::LocationChecks { locations: vec![location_id] })
+        .unwrap();
 }
 #[rebo::function(raw("Tas::archipelago_goal"))]
 fn archipelago_goal() {
@@ -1703,10 +1850,10 @@ fn get_level() -> i32 {
     LevelState::get_level()
 }
 #[rebo::function("Tas::set_level")]
-fn set_level(level: i32) {
-    set_level_in(level);
+fn set_level_rebo(level: i32) {
+    set_level(level);
 }
-fn set_level_in(level: i32) {
+fn set_level(level: i32) {
     LevelState::set_level(level);
 }
 
@@ -1737,11 +1884,6 @@ fn archipelago_gather_all_buttons() {
             if class_name == "BP_Button_C" && name != "Default__BP_Button_C" {
                 vec.push(object.as_ptr() as usize);
             }
-            if class_name == "AudioComponent" {
-                let object = unsafe { ObjectWrapper::new(object.as_ptr() as *mut UObject) };
-                // ???
-            }
-
         }
     });
 
@@ -1820,62 +1962,32 @@ fn archipelago_deactivate_buttons(index: i32) {
 
 
 #[rebo::function("Tas::archipelago_raise_cluster")]
-fn archipelago_raise_cluster(cluster_index: i32, last_unlocked: usize) {
-    archipelago_raise_cluster_in(cluster_index, last_unlocked);
+fn archipelago_raise_cluster_rebo(cluster_index: i32, last_unlocked: usize) {
+    archipelago_raise_cluster(cluster_index, last_unlocked);
 }
 
-fn archipelago_raise_cluster_in(cluster_index: i32, last_unlocked: usize) {
-    set_level_in(cluster_index);
+fn archipelago_raise_cluster(cluster_index: i32, last_unlocked: usize) {
+    set_level(cluster_index);
     if last_unlocked == 6 {
-        trigger_element_by_type_here(last_unlocked, "Button".to_string(), 1);
+        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
     }
     if last_unlocked == 9 {
-        trigger_element_by_type_here(last_unlocked, "Button".to_string(), 1);
+        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
     }
     if last_unlocked == 17 {
-        trigger_element_by_type_here(last_unlocked, "Button".to_string(), 1);
+        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
     }
     if last_unlocked == 25 {
-        trigger_element_by_type_here(last_unlocked, "Button".to_string(), 1);
-        trigger_element_by_type_here(last_unlocked, "Button".to_string(), 2);
+        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
+        trigger_element_by_type(last_unlocked, "Button".to_string(), 2);
     }
     if last_unlocked == 27 {
-        trigger_element_by_type_here(last_unlocked, "Button".to_string(), 1);
+        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
     }
-    trigger_element_by_type_here(last_unlocked, "Button".to_string(), 0);
+    trigger_element_by_type(last_unlocked, "Button".to_string(), 0);
 }
 
 
-// #[rebo::function("Tas::archipelago_yeet_all_buttons")]
-// fn archipelago_yeet_all_buttons() {
-//     // Press and release all buttons in the game immediately
-//     log!("Gonna yeet all buttons");
-
-//     fn set_element(scope: &UeScope, levels: &[Level], index: ElementIndex) {
-//         let actor = get_indexed_actor(scope, levels, index);
-//         let target_location = FVector { x: 10000. + index.element_index as f32 * 10., y: 10000., z: 10000. };
-//         let target_rotation = FRotator { pitch: 0., yaw: 0., roll: 0. };
-//         USceneComponent::set_world_location_and_rotation(target_location, target_rotation, &actor);
-//     }
-
-//     UeScope::with(|scope| {
-//         let levels = LEVELS.lock().unwrap();
-        
-//         for (cluster_index, (level, cluster)) in levels.iter().zip(&ORIGINAL_MAP.clusters).enumerate() {
-//             let level_wrapper = scope.get(level.level);
-//             let (rx, ry, _) = level_wrapper.source_location();
-//             level_wrapper.set_source_location(rx, ry, cluster.z);
-//             level_wrapper.set_speed(cluster.rise_speed);
-//             level.buttons.iter().zip(&cluster.buttons).enumerate().map(|i| (i.0, ElementType::Button))
-//                 .for_each(|(element_index, element_type)| {
-//                     let index = ElementIndex { cluster_index, element_type, element_index };
-//                     set_element(scope, &levels, index);
-//                 });
-//         }
-//     });
-
-//     log!("Done yeeting buttons");
-// }
 #[rebo::function("Tas::trigger_element")]
 fn trigger_element(index: ElementIndex) {
     fn add_remove_based_character(actor: &ActorWrapper<'_>) {
@@ -1917,22 +2029,23 @@ fn trigger_element(index: ElementIndex) {
         }
     });
 }
-fn trigger_element_by_type_here(cluster_index: usize, element_type: String, element_index: usize) {
+
+fn trigger_element_by_type(cluster_index: usize, element_type: String, element_index: usize) {
     if element_type == "Button" {
         archipelago_activate_buttons(-1);
     }
-    trigger_element_by_type_in(cluster_index, element_type.clone(), element_index);
+    trigger_element_by_type_details(cluster_index, element_type.clone(), element_index);
     if element_type == "Button" {
         archipelago_deactivate_buttons(-1);
     }
 }
 
 #[rebo::function("Tas::trigger_element_by_type")]
-fn trigger_element_by_type(cluster_index: usize, element_type: String, element_index: usize) {
-    trigger_element_by_type_here(cluster_index, element_type, element_index);
+fn trigger_element_by_type_rebo(cluster_index: usize, element_type: String, element_index: usize) {
+    trigger_element_by_type(cluster_index, element_type, element_index);
 } 
 
-fn trigger_element_by_type_in(cluster_index: usize, element_type: String, element_index: usize) {
+fn trigger_element_by_type_details(cluster_index: usize, element_type: String, element_index: usize) {
     let element_type = element_type.as_str();
     fn add_remove_based_character(actor: &ActorWrapper<'_>) {
         let state = STATE.lock().unwrap();
