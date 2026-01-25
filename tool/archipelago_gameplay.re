@@ -147,7 +147,7 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         last_platform_c: Option::None,
         last_platform_p: Option::None,
         checked_locations: List::new(),
-        mod_version: "0.6.10",
+        mod_version: "0.7.0",
         apworld_version: "",
 
         triggering_clusters: List::new(),
@@ -917,7 +917,7 @@ fn archipelago_checked_location(id: int){
         }
         if number_pressed == button_galore_locations.len() {
             ARCHIPELAGO_STATE.done_button_galore_minigame = true;
-            // log("Completed Button Galore Minigame!");
+            ap_log(List::of(ColorfulText { text:"Completed Button Galore Minigame!", color: AP_COLOR_GREEN }));
         }
         ARCHIPELAGO_STATE.progress_button_galore_minigame = f"{number_pressed}/{button_galore_locations.len()}";
     }
