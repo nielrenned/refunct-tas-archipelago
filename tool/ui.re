@@ -120,6 +120,9 @@ fn on_key_down(key_code: int, character_code: int, is_repeat: bool) {
     if key.to_small() == KEY_S.to_small() {
         Tas::set_input_mode_game_only();
     }
+    if key.to_small() == KEY_T.to_small() {
+        Tas::test_stuff();
+    }
 
     //Ledge, jump_pad, WallJump, Swim, Lifts, Pipes
 

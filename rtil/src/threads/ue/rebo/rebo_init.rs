@@ -13,7 +13,7 @@ use rebo::{DisplayValue, ExecError, IncludeConfig, Map, Output, ReboConfig, Span
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use websocket::{ClientBuilder, Message, OwnedMessage, WebSocketError};
-use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, CubeWrapper, PlatformWrapper};
+use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, ClassWrapper, CubeWrapper, ObjectPropertyWrapper, PlatformWrapper};
 use crate::native::{try_find_element_index, ue::FVector, AActor, ALiftBaseUE, AMyCharacter, AMyHud, ActorWrapper, EBlendMode, FApp, FViewport, KismetSystemLibrary, Level, LevelState, LevelWrapper, ObjectIndex, ObjectWrapper, UGameplayStatics, UMyGameInstance, UObject, UTexture2D, UWorld, UeObjectWrapperType, UeScope, LEVELS};
 use protocol::{Request, Response};
 use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
@@ -137,6 +137,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(archipelago_gather_all_buttons)
         .add_function(archipelago_trigger_goal_animation)
         .add_function(archipelago_raise_cluster_rebo)
+        .add_function(test_stuff)
 
         .add_function(abilities_set_wall_jump)
         .add_function(abilities_set_ledge_grab)
@@ -892,6 +893,46 @@ fn store_settings(settings: Map<String, String>) {
     let map: HashMap<_, _> = settings.clone_map();
     serde_json::to_writer_pretty(&mut file, &map).unwrap();
     writeln!(file).unwrap();
+}
+
+#[rebo::function("Tas::test_stuff()")]
+fn test_stuff() {
+    UeScope::with(|scope| {
+        for item in scope.iter_global_object_array() {
+            fn print_children(depth: usize, class: ClassWrapper, max_depth: usize) {
+                if depth > max_depth { return; }
+                for property in class.iter_properties() {
+                    let class_name = property.class().name();
+                    log!("{}{property} :: ({class_name})", "  ".repeat(depth));
+
+                    if class_name == "ObjectProperty" {
+                        // Get the class that this property points to
+                        let obj_prop: ObjectPropertyWrapper = property.upcast();
+                        let target_class = obj_prop.property_class();
+                        print_children(depth + 1, target_class, max_depth);
+                    }
+                }
+
+                for function in class.iter_functions() {
+                    let function_name = function.name();
+                    let param_string = function.iter_params().map(|param| {
+                        let name = param.name();
+                        let class_name = param.class().name();
+                        format!("{name}: {class_name}")
+                    }).join(", ");
+                    log!("{}{function_name}({param_string})", "  ".repeat(depth));
+                }
+            }
+
+            // This prints all top-level objects to the log file. There are a lot, so I usually
+            // Ctrl-F for the thing I'm looking for, then do
+            //    if object.name() == "blah"
+            // here, and increase the max_depth.
+            let object = item.object();
+            log!("{:?} ({:?})", object.name(), object.class().name());
+            print_children(1, object.class(), 3);
+        }
+    });
 }
 
 #[derive(Serialize, Deserialize)]
