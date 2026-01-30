@@ -235,6 +235,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(set_input_mode_game_only)
         .add_function(set_input_mode_ui_only)
         .add_function(flush_pressed_keys)
+        .add_function(test_stuff)
         .add_external_type(Location)
         .add_external_type(Rotation)
         .add_external_type(Velocity)
@@ -533,6 +534,37 @@ fn interrupt_function<'i>(_vm: &mut VmContext<'i, '_, '_>) -> Result<(), ExecErr
     }
 }
 
+static mut CURRENT_LEVEL: i32 = 28;
+
+#[rebo::function("Tas::test_stuff")]
+fn test_stuff() {
+    set_goal_animation_trigger_enabled(false);
+
+    UeScope::with(|scope| {
+        unsafe {
+            LevelState::set_level(CURRENT_LEVEL);
+            CURRENT_LEVEL += 1;
+
+            UMyGameInstance::raise_next_level();
+        }
+
+        let levels = LEVELS.lock().unwrap();
+        let first_button = scope.get(levels[0].buttons[0]);
+        first_button.set_beacon_color(0.0, 1.0, 1.0);
+        first_button.set_pressed(!first_button.is_pressed());
+    });
+}
+
+fn set_goal_animation_trigger_enabled(enabled: bool) {
+    // Enables/disables the endgame animation that is triggered by the final button
+    UeScope::with(|scope| {
+        let levels = LEVELS.lock().unwrap();
+        let final_button = scope.get(&levels[levels.len()-1].buttons[0]);
+        let mut button_pressed_delegate = final_button.get_field("ButtonPressed").as_multicast_delegate().unwrap();
+        unsafe { button_pressed_delegate._set_invocation_list_len(if enabled { 2 } else { 0 }) };
+    });
+}
+
 #[rebo::function(raw("Tas::new_version_string"))]
 fn new_version_string() -> Option<String> {
     STATE.lock().unwrap().as_ref().unwrap().new_version_string.clone()
@@ -571,6 +603,7 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
                 if index.element_type == ElementType::Cube && index.cluster_index == 9999 {
                     maybe_remove_extra_cube(index.element_index as i32);
                 }
+                log!("Element pressed {:?}", index);
                 element_pressed(vm, index)?
             },
             UeEvent::ElementReleased(index) => element_released(vm, index)?,
