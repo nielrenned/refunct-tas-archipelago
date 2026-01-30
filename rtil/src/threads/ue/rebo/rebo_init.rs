@@ -13,7 +13,7 @@ use rebo::{DisplayValue, ExecError, IncludeConfig, Map, Output, ReboConfig, Span
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use websocket::{ClientBuilder, Message, OwnedMessage, WebSocketError};
-use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, ClassWrapper, CubeWrapper, ObjectPropertyWrapper, PlatformWrapper};
+use crate::native::{character::USceneComponent, uworld::JUMP6_INDEX, ClassWrapper, CubeWrapper, ObjectPropertyWrapper, PlatformWrapper, StructPropertyWrapper, StructWrapper};
 use crate::native::{try_find_element_index, ue::FVector, AActor, ALiftBaseUE, AMyCharacter, AMyHud, ActorWrapper, EBlendMode, FApp, FViewport, KismetSystemLibrary, Level, LevelState, LevelWrapper, ObjectIndex, ObjectWrapper, UGameplayStatics, UMyGameInstance, UObject, UTexture2D, UWorld, UeObjectWrapperType, UeScope, LEVELS};
 use protocol::{Request, Response};
 use crate::threads::{ArchipelagoToRebo, ReboToArchipelago, ReboToStream, StreamToRebo};
@@ -895,21 +895,34 @@ fn store_settings(settings: Map<String, String>) {
     writeln!(file).unwrap();
 }
 
-#[rebo::function("Tas::test_stuff()")]
+#[rebo::function("Tas::test_stuff")]
 fn test_stuff() {
+    check_objects();
+}
+
+fn check_objects() {
     UeScope::with(|scope| {
         for item in scope.iter_global_object_array() {
             fn print_children(depth: usize, class: ClassWrapper, max_depth: usize) {
                 if depth > max_depth { return; }
                 for property in class.iter_properties() {
                     let class_name = property.class().name();
-                    log!("{}{property} :: ({class_name})", "  ".repeat(depth));
 
                     if class_name == "ObjectProperty" {
                         // Get the class that this property points to
                         let obj_prop: ObjectPropertyWrapper = property.upcast();
                         let target_class = obj_prop.property_class();
+                        let target_class_name = target_class.name();
+                        log!("{}{property} :: ({target_class_name})", "  ".repeat(depth));
                         print_children(depth + 1, target_class, max_depth);
+                    } else if class_name == "StructProperty" {
+                        let struct_prop: StructPropertyWrapper = property.upcast();
+                        let struct_: StructWrapper = struct_prop.struct_();
+                        let struct_name = struct_.name();
+                        log!("{}{property} :: ({struct_name})", "  ".repeat(depth));
+                        print_children(depth + 1, struct_.class(), max_depth);
+                    } else {
+                        log!("{}{property} :: ({class_name})", "  ".repeat(depth));
                     }
                 }
 
@@ -924,13 +937,16 @@ fn test_stuff() {
                 }
             }
 
-            // This prints all top-level objects to the log file. There are a lot, so I usually
-            // Ctrl-F for the thing I'm looking for, then do
-            //    if object.name() == "blah"
-            // here, and increase the max_depth.
             let object = item.object();
-            log!("{:?} ({:?})", object.name(), object.class().name());
-            print_children(1, object.class(), 3);
+            let object_name = object.name();
+            let object_class = object.class();
+
+            // Remove this if-statement to print _all_ top-level objects! I would also recommend
+            // reducing the max_depth, otherwise it prints a _lot_ of information.
+            if matches!(object_name.as_str(), "BP_PowerCore_C_5" | "BP_PowerCore8") {
+                log!("{:?} ({:?})", object_name, object_class.name());
+                print_children(1, object_class, 3);
+            }
         }
     });
 }
