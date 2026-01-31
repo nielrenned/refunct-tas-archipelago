@@ -303,7 +303,7 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_required_rebo_function(archipelago_retrieved)
         .add_required_rebo_function(archipelago_print_json_message)
         .add_required_rebo_function(archipelago_received_death)
-        .add_required_rebo_function(archipelago_trigger_one_cluster_now)
+        .add_required_rebo_function(archipelago_tick)
         .add_required_rebo_function(archipelago_init)
         .add_required_rebo_function(archipelago_set_own_id)
         .add_required_rebo_function(ap_log_error)
@@ -820,7 +820,7 @@ fn step_internal<'i>(vm: &mut VmContext<'i, '_, '_>, expr_span: Span, suspend: S
 
         // get current timestamp in milliseconds:
         let before = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
-        let _ = archipelago_trigger_one_cluster_now(vm, before)?;
+        let _ = archipelago_tick(vm, before)?;
 
         match to_be_returned {
             Some(ret) => {
@@ -870,7 +870,7 @@ extern "rebo" {
     fn archipelago_print_json_message(json_message: ReboPrintJSONMessage);
     fn archipelago_retrieved(key: String, value: String);
     fn archipelago_received_death(source: String, cause: String);
-    fn archipelago_trigger_one_cluster_now(time: u64);
+    fn archipelago_tick(time: u64);
     fn ap_log_error(message: String);
 }
 

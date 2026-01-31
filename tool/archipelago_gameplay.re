@@ -83,7 +83,7 @@ struct ArchipelagoState {
     apworld_version: string,
 
     triggering_clusters: List<int>,
-    triggering_clusters_counter: int,
+    last_tick_time: int,
 }
 
 fn fresh_archipelago_state() -> ArchipelagoState {
@@ -171,7 +171,7 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         apworld_version: "",
 
         triggering_clusters: List::new(),
-        triggering_clusters_counter: 0,
+        last_tick_time: 0,
     }
 }
 
@@ -468,7 +468,7 @@ fn archipelago_process_item(item_id: int, starting_index: int, item_index: int) 
 }
 
 fn archipelago_tick(time: int) {
-    if time - ARCHIPELAGO_STATE.triggering_clusters_counter < 400 {
+    if time - ARCHIPELAGO_STATE.last_tick_time < 400 {
         return;
     }
     if ARCHIPELAGO_STATE.triggering_clusters.len() == 0 {
@@ -481,7 +481,7 @@ fn archipelago_tick(time: int) {
     if ARCHIPELAGO_STATE.gamemode == 3 && ARCHIPELAGO_STATE.seeker_done_triggering == 0 {
         ARCHIPELAGO_STATE.seeker_done_triggering = 1;
     }
-    ARCHIPELAGO_STATE.triggering_clusters_counter = time;
+    ARCHIPELAGO_STATE.last_tick_time = time;
 
     let c = ARCHIPELAGO_STATE.triggering_clusters.get(0).unwrap();
     ARCHIPELAGO_STATE.triggering_clusters.remove(0);
