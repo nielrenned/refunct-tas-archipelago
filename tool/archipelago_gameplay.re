@@ -1,6 +1,7 @@
 
 struct ArchipelagoState {
     ap_connected: bool,
+
     last_level_unlocked: int,
     grass: int,
     wall_jump: int,
@@ -19,9 +20,18 @@ struct ArchipelagoState {
     stepped_on_platforms: List<int>,
     collected_cubes: List<int>,
     cubes_options: int,
+    extra_cubes_options: int,
+    
     highest_index_received: int,
     has_goaled: bool,
     gamemode: int,
+
+    red_cubes_bag: bool,
+    green_cubes_bag: bool,
+    blue_cubes_bag: bool,
+
+    extra_cubes_locs: List<int>,
+    extra_cubes_int_ids: List<int>,
 
     unlock_vanilla_minigame: bool,
     done_vanilla_minigame: bool,
@@ -73,12 +83,13 @@ struct ArchipelagoState {
     apworld_version: string,
 
     triggering_clusters: List<int>,
-    triggering_clusters_counter: int,
+    last_tick_time: int,
 }
 
 fn fresh_archipelago_state() -> ArchipelagoState {
     ArchipelagoState {
         ap_connected: false,
+
         last_level_unlocked: 1,
         grass: 0,
         wall_jump: 0,
@@ -97,9 +108,18 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         stepped_on_platforms: List::new(),
         collected_cubes: List::new(),
         cubes_options: -1,
+        extra_cubes_options: -1,
+        
         highest_index_received: -1,
         has_goaled: false,
         gamemode: 0,
+
+        red_cubes_bag: false,
+        green_cubes_bag: false,
+        blue_cubes_bag: false,
+
+        extra_cubes_locs: List::new(),
+        extra_cubes_int_ids: List::new(),
 
         unlock_vanilla_minigame: false,
         done_vanilla_minigame: false,
@@ -147,11 +167,11 @@ fn fresh_archipelago_state() -> ArchipelagoState {
         last_platform_c: Option::None,
         last_platform_p: Option::None,
         checked_locations: List::new(),
-        mod_version: "0.7.0",
+        mod_version: "0.8.0",
         apworld_version: "",
 
         triggering_clusters: List::new(),
-        triggering_clusters_counter: 0,
+        last_tick_time: 0,
     }
 }
 
@@ -171,6 +191,8 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     on_new_game: fn() {
         Tas::destroy_cubes(true, true);
         Tas::destroy_platforms(true, true);
+        ARCHIPELAGO_STATE.extra_cubes_locs.clear();
+        ARCHIPELAGO_STATE.extra_cubes_int_ids.clear();
 
         if ARCHIPELAGO_STATE.gamemode == 4 {
             ARCHIPELAGO_STATE.started = 0;
@@ -201,6 +223,7 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     on_element_pressed: fn(index: ElementIndex) {
         if index.cluster_index == 9999 {
             got_cube_block_brawl(index.element_index);
+            got_extra_cube_ap(index.element_index);
             return;
         }
         
@@ -369,6 +392,39 @@ fn archipelago_process_item(item_id: int, starting_index: int, item_index: int) 
         if item_id == 9999999 {  // Grass
             archipelago_got_grass();
         }
+
+        if item_id == 9999989 && !ARCHIPELAGO_STATE.red_cubes_bag {  // Red Cubes Bag
+            ARCHIPELAGO_STATE.red_cubes_bag = true;
+            if ARCHIPELAGO_STATE.gamemode == 0 {
+                if ARCHIPELAGO_STATE.cubes_options == 1 {  // red
+                    for cube in Tas::get_vanilla_cubes() {
+                        Tas::set_cube_collision(cube, true);
+                        Tas::set_cube_color(cube, Color { red: 1., green: 0., blue: 0., alpha: 1. });
+                    }
+                }
+                if ARCHIPELAGO_STATE.extra_cubes_options == 1 {
+                    for cube in ARCHIPELAGO_STATE.extra_cubes_int_ids {
+                        Tas::set_cube_collision(cube, true);
+                        Tas::set_cube_color(cube, Color { red: 1., green: 0., blue: 0., alpha: 1. });
+                    }
+                }
+            }
+        }
+        if item_id == 9999988 && !ARCHIPELAGO_STATE.green_cubes_bag {  // Green Cubes Bag
+            ARCHIPELAGO_STATE.green_cubes_bag = true;
+            if ARCHIPELAGO_STATE.gamemode == 0 {
+                if ARCHIPELAGO_STATE.extra_cubes_options == 2 {
+                    for cube in ARCHIPELAGO_STATE.extra_cubes_int_ids {
+                        Tas::set_cube_collision(cube, true);
+                        Tas::set_cube_color(cube, Color { red: 0., green: 1., blue: 0., alpha: 1. });
+                    }
+                }
+            }
+        }
+        if item_id == 9999987 && !ARCHIPELAGO_STATE.blue_cubes_bag {  // Blue Cubes Bag
+            ARCHIPELAGO_STATE.blue_cubes_bag = true;
+        }
+
         let clusterindex = item_id - 10000000;
         if clusterindex >= 2 && clusterindex < 32 {
             if !ARCHIPELAGO_STATE.triggered_clusters.contains(clusterindex) {
@@ -411,8 +467,8 @@ fn archipelago_process_item(item_id: int, starting_index: int, item_index: int) 
 
 }
 
-fn archipelago_trigger_one_cluster_now(time: int) {
-    if time - ARCHIPELAGO_STATE.triggering_clusters_counter < 400 {
+fn archipelago_tick(time: int) {
+    if time - ARCHIPELAGO_STATE.last_tick_time < 400 {
         return;
     }
     if ARCHIPELAGO_STATE.triggering_clusters.len() == 0 {
@@ -425,7 +481,7 @@ fn archipelago_trigger_one_cluster_now(time: int) {
     if ARCHIPELAGO_STATE.gamemode == 3 && ARCHIPELAGO_STATE.seeker_done_triggering == 0 {
         ARCHIPELAGO_STATE.seeker_done_triggering = 1;
     }
-    ARCHIPELAGO_STATE.triggering_clusters_counter = time;
+    ARCHIPELAGO_STATE.last_tick_time = time;
 
     let c = ARCHIPELAGO_STATE.triggering_clusters.get(0).unwrap();
     ARCHIPELAGO_STATE.triggering_clusters.remove(0);
@@ -605,6 +661,7 @@ fn archipelago_init(gamemode: int){
     }
 
     Tas::archipelago_gather_all_buttons();
+
 }
 
 fn archipelago_start(){
@@ -655,14 +712,122 @@ fn archipelago_main_start(){
     Tas::archipelago_deactivate_buttons_ap();
 
     Tas::reset_cubes(true, true);
+
+
+    spawn_extra_cubes();
+
+    
     archipelago_activate_stepped_on_platforms();
     archipelago_collect_collected_cubes();
+
+
 
     ARCHIPELAGO_STATE.started = 2;
     let mut i = 0;
     for item in ARCHIPELAGO_STATE.received_items {
         archipelago_process_item(item, 0, i);
         i += 1;
+    }
+}
+
+fn spawn_extra_cubes(){    
+    if ARCHIPELAGO_STATE.extra_cubes_options == 9{
+        return;
+    }
+    let cubes_to_spawn_locs = List::of(
+        -4562.5,  -875.,  1375.,  
+        -1985.,  -2262.5,  2090.,  
+        -5062.5,  -3312.5,  62.5,  
+        -3237.5,  -3744.,  35.,  
+        625.,  1625.,  800.,  
+        1415.,  2625.,  215.,  
+        6.3806667,  2880.,  965.,  
+        1250.,  -3750.,  62.5,  
+        1695.,  4636.,  2000.,  
+        2187.5,  6375.,  62.5
+    );
+
+    let cubes_to_spawn_ids = List::of(
+        10080501,
+        10080602,
+        10080702,
+        10080803,
+        10081302,
+        10081402,
+        10081403,
+        10081901,
+        10082501,
+        10082601
+    );
+
+    let mut i = 0;
+    while i < cubes_to_spawn_ids.len() {
+        let x = cubes_to_spawn_locs.get(i*3).unwrap();
+        let y = cubes_to_spawn_locs.get(i*3 + 1).unwrap();
+        let z = cubes_to_spawn_locs.get(i*3 + 2).unwrap();
+        let loc_id = cubes_to_spawn_ids.get(i).unwrap();
+
+        if ARCHIPELAGO_STATE.checked_locations.contains(loc_id) {
+            i += 1;
+            continue;
+        }
+
+        let mut col = Color { red: 1., green: 0., blue: 0., alpha: 1. };
+        let mut ready = true;
+        if ARCHIPELAGO_STATE.extra_cubes_options == 1 {
+            if ARCHIPELAGO_STATE.red_cubes_bag {
+                col.red = 1.;
+                col.green = 0.;
+                col.blue = 0.;
+            }else{
+                col.red = 0.;
+                col.green = 0.;
+                col.blue = 0.;
+                ready = false;
+            }
+        }
+        if ARCHIPELAGO_STATE.extra_cubes_options == 2 {
+            if ARCHIPELAGO_STATE.green_cubes_bag {
+                col.red = 0.;
+                col.green = 1.;
+                col.blue = 0.;
+            }else{
+                col.red = 0.;
+                col.green = 0.;
+                col.blue = 0.;
+                ready = false;
+            }
+        }
+        let id = Tas::set_cube_scale(Tas::set_cube_color(Tas::spawn_cube(Location { x: x, y: y, z: z - 162.5 }), col), 1.0);
+        if !ready {
+            Tas::set_cube_collision(id, false);
+        }
+        ARCHIPELAGO_STATE.extra_cubes_int_ids.push(id);
+        ARCHIPELAGO_STATE.extra_cubes_locs.push(loc_id);
+
+        i += 1;
+    }
+    
+}
+
+
+
+fn got_extra_cube_ap(element_index: int){
+    let mut found_index = Option::None;
+    let mut i = 0;
+    for id in ARCHIPELAGO_STATE.extra_cubes_int_ids {
+        if id == element_index {
+            found_index = Option::Some(i);
+            break;
+        }
+        i += 1;
+    }
+    match found_index {
+        Option::Some(pos) => {
+            let loc = ARCHIPELAGO_STATE.extra_cubes_locs.get(pos).unwrap();
+            archipelago_send_check(loc);
+        },
+        Option::None => {}
     }
 }
 
@@ -673,6 +838,7 @@ fn archipelago_vanilla_start(){
     Tas::abilities_set_jump_pads(true);
     Tas::abilities_set_pipes(true);
     Tas::abilities_set_lifts(true);
+    collect_all_vanilla_cubes();
     ARCHIPELAGO_STATE.last_level_unlocked = 1;
     ARCHIPELAGO_STATE.started = 2;
 }
@@ -684,6 +850,7 @@ fn archipelago_seeker_start(){
     Tas::abilities_set_jump_pads(true);
     Tas::abilities_set_pipes(true);
     Tas::abilities_set_lifts(true);
+    collect_all_vanilla_cubes();
     ARCHIPELAGO_STATE.last_level_unlocked = 1;
     ARCHIPELAGO_STATE.started = 2;
 
@@ -715,6 +882,7 @@ fn archipelago_button_galore_start(){
     Tas::abilities_set_jump_pads(true);
     Tas::abilities_set_pipes(true);
     Tas::abilities_set_lifts(true);
+    collect_all_vanilla_cubes();
     ARCHIPELAGO_STATE.last_level_unlocked = 1;
     ARCHIPELAGO_STATE.started = 2;
 }
@@ -726,6 +894,7 @@ fn archipelago_og_randomizer_start(){
     Tas::abilities_set_jump_pads(true);
     Tas::abilities_set_pipes(true);
     Tas::abilities_set_lifts(true);
+    collect_all_vanilla_cubes();
     ARCHIPELAGO_STATE.last_level_unlocked = 1;
     ARCHIPELAGO_STATE.started = 2;
 }
@@ -738,6 +907,7 @@ fn archipelago_block_brawl_start(){
     Tas::abilities_set_pipes(true);
     Tas::abilities_set_lifts(true);
     Tas::archipelago_deactivate_buttons_ap();
+    collect_all_vanilla_cubes();
     ARCHIPELAGO_STATE.last_level_unlocked = 1;
     ARCHIPELAGO_STATE.started = 2;
     ARCHIPELAGO_STATE.block_brawl_cubes_collected = 0;
@@ -749,6 +919,11 @@ fn archipelago_block_brawl_start(){
     ARCHIPELAGO_STATE.block_brawl_yellow_ids.clear();
     ARCHIPELAGO_STATE.block_brawl_cubes_collected = 0;
     ARCHIPELAGO_STATE.score_for_next_block = 1;
+
+    Tas::archipelago_ds_get(f"RFBB_r_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}");
+    Tas::archipelago_ds_get(f"RFBB_b_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}");
+    Tas::archipelago_ds_get(f"RFBB_g_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}");
+    Tas::archipelago_ds_get(f"RFBB_y_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}");
 
     let mut i = 0;
     while i < 200 {
@@ -813,6 +988,7 @@ fn got_cube_block_brawl(id: int){
                 Tas::archipelago_send_check(10071000 + cp);
             }
         }
+        Tas::archipelago_ds_set_max(f"RFBB_r_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}",0, ARCHIPELAGO_STATE.score_block_brawl_reds);
     }
     if ARCHIPELAGO_STATE.block_brawl_blue_ids.contains(id) {
         ARCHIPELAGO_STATE.block_brawl_blue_ids.remove(id);
@@ -822,6 +998,7 @@ fn got_cube_block_brawl(id: int){
                 Tas::archipelago_send_check(10072000 + cp);
             }
         }
+        Tas::archipelago_ds_set_max(f"RFBB_b_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}",0, ARCHIPELAGO_STATE.score_block_brawl_blues);
     }
     if ARCHIPELAGO_STATE.block_brawl_green_ids.contains(id) {
         ARCHIPELAGO_STATE.block_brawl_green_ids.remove(id);
@@ -831,6 +1008,7 @@ fn got_cube_block_brawl(id: int){
                 Tas::archipelago_send_check(10073000 + cp);
             }
         }
+        Tas::archipelago_ds_set_max(f"RFBB_g_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}",0, ARCHIPELAGO_STATE.score_block_brawl_greens);
     }
     if ARCHIPELAGO_STATE.block_brawl_yellow_ids.contains(id) {
         ARCHIPELAGO_STATE.block_brawl_yellow_ids.remove(id);
@@ -840,6 +1018,7 @@ fn got_cube_block_brawl(id: int){
                 Tas::archipelago_send_check(10074000 + cp);
             }
         }
+        Tas::archipelago_ds_set_max(f"RFBB_y_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}",0, ARCHIPELAGO_STATE.score_block_brawl_yellows);
     }
     ARCHIPELAGO_STATE.block_brawl_cubes_collected += 1;
     let next_score = score_list_based_on_number_of_cubes.get(ARCHIPELAGO_STATE.block_brawl_cubes_collected).unwrap_or(1);
@@ -945,6 +1124,33 @@ fn archipelago_checked_location(id: int){
         update_block_brawl_in_logic_counts();
     }
 }
+fn archipelago_retrieved(key: string, value: string){
+    if key == f"RFBB_r_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}" {
+        let v = value.parse_int().unwrap();
+        if v > ARCHIPELAGO_STATE.score_block_brawl_reds {
+            ARCHIPELAGO_STATE.score_block_brawl_reds = v;
+        }
+    }
+    if key == f"RFBB_b_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}" {
+        let v = value.parse_int().unwrap();
+        if v > ARCHIPELAGO_STATE.score_block_brawl_blues {
+            ARCHIPELAGO_STATE.score_block_brawl_blues = v;
+        }
+    }
+    if key == f"RFBB_g_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}" {
+        let v = value.parse_int().unwrap();
+        if v > ARCHIPELAGO_STATE.score_block_brawl_greens {
+            ARCHIPELAGO_STATE.score_block_brawl_greens = v;
+        }
+    }
+    if key == f"RFBB_y_{ARCHIPELAGO_ROOM_INFO.this_player_team}_{ARCHIPELAGO_ROOM_INFO.this_player_slot}" {
+        let v = value.parse_int().unwrap();
+        if v > ARCHIPELAGO_STATE.score_block_brawl_yellows {
+            ARCHIPELAGO_STATE.score_block_brawl_yellows = v;
+        }
+    }
+}
+
 fn archipelago_send_check(id: int){
     if ARCHIPELAGO_STATE.checked_locations.contains(id) {
         return;
@@ -960,28 +1166,39 @@ fn archipelago_activate_stepped_on_platforms(){
         Tas::trigger_element_by_type(cluster-1, "Platform", plat-1);
     }
 }
+fn collect_all_vanilla_cubes(){
+    let all_cubes = Tas::get_vanilla_cubes();
+    for cube in all_cubes {
+        Tas::collect_cube(cube);
+    }
+}
 fn archipelago_collect_collected_cubes(){
     if ARCHIPELAGO_STATE.cubes_options == 9{
-        let all_cubes = Tas::get_vanilla_cubes();
-        for cube in all_cubes {
-            Tas::set_cube_color(Tas::collect_cube(cube), Color { red: 0., green: 0., blue: 0., alpha: 1. } );
-        }
+        collect_all_vanilla_cubes();
     }else{
         for id in ARCHIPELAGO_STATE.collected_cubes {
             let cluster = (id - 10060000) / 100;
             let plat = (id - 10060000) % 100;
 
             match Tas::get_vanilla_cube(cluster-1, plat-1) {
-                Option::Some(cube) => { Tas::set_cube_color(Tas::collect_cube(cube), Color { red: 0., green: 0., blue: 0., alpha: 1. }); },
+                Option::Some(cube) => { Tas::collect_cube(cube); },
                 Option::None => {}
             }
         }
 
         let all_cubes = Tas::get_vanilla_cubes();
         for cube in all_cubes {
-            Tas::set_cube_color_random(cube);
+            Tas::set_cube_color(cube, Color { red: 1., green: 0., blue: 0., alpha: 1. });
             Tas::set_cube_scale(cube, 2.0);
         }
+
+        if ARCHIPELAGO_STATE.cubes_options == 1 && !ARCHIPELAGO_STATE.red_cubes_bag {  // red
+            for cube in all_cubes {
+                Tas::set_cube_color(cube, Color { red: 0., green: 0., blue: 0., alpha: 1. });
+                Tas::set_cube_collision(cube, false);
+            }
+        }
+        
     }
 }
 
@@ -1031,5 +1248,8 @@ fn archipelago_received_slot_data(key: string, value: string){
 
     if key == "cubes" {
         ARCHIPELAGO_STATE.cubes_options = value.parse_int().unwrap();
+    }
+    if key == "extra_cubes" {
+        ARCHIPELAGO_STATE.extra_cubes_options = value.parse_int().unwrap();
     }
 }
