@@ -181,7 +181,7 @@ static platforms_with_buttons = List::of(10010101,10010203,10010302,10010404,100
 
 static mut ARCHIPELAGO_COMPONENT = Component {
     id: ARCHIPELAGO_COMPONENT_ID,
-    conflicts_with: List::of(ARCHIPELAGO_COMPONENT_ID, MULTIPLAYER_COMPONENT_ID, NEW_GAME_100_PERCENT_COMPONENT_ID, NEW_GAME_ALL_BUTTONS_COMPONENT_ID, NEW_GAME_NGG_COMPONENT_ID, PRACTICE_COMPONENT_ID, RANDOMIZER_COMPONENT_ID, TAS_COMPONENT_ID, WINDSCREEN_WIPERS_COMPONENT_ID),
+    conflicts_with: List::of(ARCHIPELAGO_COMPONENT_ID, MULTIPLAYER_COMPONENT_ID, NEW_GAME_100_PERCENT_COMPONENT_ID, NEW_GAME_ALL_BUTTONS_COMPONENT_ID, NEW_GAME_NGG_COMPONENT_ID, PRACTICE_COMPONENT_ID, RANDOMIZER_COMPONENT_ID, TAS_COMPONENT_ID, WINDSCREEN_WIPERS_COMPONENT_ID, ARCHIPELAGO_DISCONNECTED_INFO_COMPONENT_ID),
     tick_mode: TickMode::DontCare,
     requested_delta_time: Option::None,
     on_tick: fn() {},
@@ -347,9 +347,40 @@ static mut ARCHIPELAGO_COMPONENT = Component {
     on_menu_open: fn() {},
 };
 
+static mut ARCHIPELAGO_DISCONNECTED_INFO_COMPONENT = Component {
+    id: ARCHIPELAGO_DISCONNECTED_INFO_COMPONENT_ID,
+    conflicts_with: List::of(ARCHIPELAGO_LOG_COMPONENT_ID, MULTIPLAYER_COMPONENT_ID, NEW_GAME_100_PERCENT_COMPONENT_ID, NEW_GAME_ALL_BUTTONS_COMPONENT_ID, NEW_GAME_NGG_COMPONENT_ID, PRACTICE_COMPONENT_ID, RANDOMIZER_COMPONENT_ID, TAS_COMPONENT_ID, WINDSCREEN_WIPERS_COMPONENT_ID, ARCHIPELAGO_COMPONENT_ID),
+    tick_mode: TickMode::DontCare,
+    requested_delta_time: Option::None,
+    on_tick: fn() {},
+    on_yield: fn() {},
+    draw_hud_text: fn(text: string) -> string { text },
+    draw_hud_always: archipelago_disconnected_info_hud,
+    on_new_game: fn() {},
+    on_level_change: fn(old: int, new: int) {},
+    on_buttons_change: fn(old: int, new: int) {},
+    on_cubes_change: fn(old: int, new: int) {},
+    on_platforms_change: fn(old: int, new: int) {},
+    on_reset: fn(old: int, new: int) {},
+    on_element_pressed: fn(index: ElementIndex) {},
+    on_element_released: fn(index: ElementIndex) {},
+    on_key_down: fn(key: KeyCode, is_repeat: bool) {},
+    on_key_down_always: fn(key: KeyCode, is_repeat: bool) {},
+    on_key_up: fn(key: KeyCode) {},
+    on_key_up_always: fn(key: KeyCode) {},
+    on_key_char: fn(c: string) {},
+    on_key_char_always: fn(c: string) {},
+    on_mouse_move: fn(x: int, y: int) {},
+    on_component_enter: fn() {},
+    on_component_exit: fn() {},
+    on_resolution_change: fn() {},
+    on_menu_open: fn() {},
+};
+
 fn archipelago_disconnected() {
     ap_log_error("Disconnected from Archipelago server");
     remove_component(ARCHIPELAGO_COMPONENT);
+    add_component(ARCHIPELAGO_DISCONNECTED_INFO_COMPONENT);
     ARCHIPELAGO_STATE.ap_connected = false;
 };
 
