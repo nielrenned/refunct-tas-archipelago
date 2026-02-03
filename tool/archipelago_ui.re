@@ -732,7 +732,7 @@ fn get_status_text_lines() -> List<ColorfulText> {
     if ARCHIPELAGO_STATE.gamemode == 0 {
         txt = "\n\nMinigames with checks:";
     }
-    if ARCHIPELAGO_STATE.gamemode != 0 || ARCHIPELAGO_STATE.started == 0 {
+    if (ARCHIPELAGO_STATE.gamemode != 0 || ARCHIPELAGO_STATE.started == 0) && ARCHIPELAGO_STATE.grass >= 0 {
         lines.push(ColorfulText {
             text:  f"\n\n[Grass {ARCHIPELAGO_STATE.grass}/{ARCHIPELAGO_STATE.required_grass}] ",
             color: if ARCHIPELAGO_STATE.grass >= ARCHIPELAGO_STATE.required_grass { AP_COLOR_GREEN } else { AP_COLOR_CYAN }
