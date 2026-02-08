@@ -640,6 +640,11 @@ impl<'a> ButtonWrapper<'a> {
         assert_eq!(button.class().name(), "BP_Button_C");
         ButtonWrapper { base: button }
     }
+    
+    pub fn set_enabled(&self, enabled: bool) {
+        self.set_pressed(!enabled);
+        self.set_collision(enabled);
+    }
 
     pub fn set_pressed(&self, pressed: bool) {
         let set_active_fn = self.class().find_function("SetActive").unwrap();

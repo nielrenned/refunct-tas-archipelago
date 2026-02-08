@@ -27,7 +27,6 @@ use crate::threads::ue::rebo::livesplit;
 use crate::threads::ue::iced_ui::Clipboard;
 use crate::threads::ue::iced_ui::rebo_elements::{IcedButton, IcedColumn, IcedElement, IcedRow, IcedText, IcedWindow};
 
-use crate::native::{BoolValueWrapper};
 use crate::native::reflection::DerefToObjectWrapper;
 use crate::native::font::replace_unrenderable_chars;
 
@@ -138,11 +137,11 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(set_level_rebo)
         .add_function(trigger_element)
         .add_function(trigger_element_by_type_rebo)
-        .add_function(archipelago_activate_buttons_ap)
-        .add_function(archipelago_deactivate_buttons_ap)
-        .add_function(archipelago_gather_all_buttons)
-        .add_function(archipelago_trigger_goal_animation)
-        .add_function(archipelago_raise_cluster_rebo)
+        .add_function(activate_buttons_rebo)
+        .add_function(deactivate_buttons_rebo)
+        .add_function(set_button_enabled_rebo)
+        .add_function(trigger_goal_animation)
+        .add_function(raise_cluster_rebo)
 
         .add_function(abilities_set_wall_jump)
         .add_function(abilities_set_ledge_grab)
@@ -538,18 +537,9 @@ fn interrupt_function<'i>(_vm: &mut VmContext<'i, '_, '_>) -> Result<(), ExecErr
     }
 }
 
-static mut CURRENT_LEVEL: i32 = 28;
-
 #[rebo::function("Tas::test_stuff")]
 fn test_stuff() {
     UeScope::with(|scope| {
-        unsafe {
-            LevelState::set_level(CURRENT_LEVEL);
-            CURRENT_LEVEL += 1;
-
-            UMyGameInstance::raise_next_level();
-        }
-
         let levels = LEVELS.lock().unwrap();
         let first_button = scope.get(levels[0].buttons[0]);
         first_button.set_beacon_color(0.0, 1.0, 1.0);
@@ -565,7 +555,7 @@ fn disable_all_buttons() {
         for level in levels.iter() {
             for button_index in level.buttons.iter() {
                 let button = scope.get(*button_index);
-                button.set_pressed(false);
+                button.set_pressed(true);
                 button.set_collision(false);
             }
         }
@@ -579,7 +569,7 @@ fn enable_all_buttons() {
         for level in levels.iter() {
             for button_index in level.buttons.iter() {
                 let button = scope.get(*button_index);
-                button.set_pressed(true);
+                button.set_pressed(false);
                 button.set_collision(true);
             }
         }
@@ -1976,140 +1966,52 @@ fn get_level() -> i32 {
 }
 #[rebo::function("Tas::set_level")]
 fn set_level_rebo(level: i32) {
-    set_level(level);
-}
-fn set_level(level: i32) {
     LevelState::set_level(level);
 }
 
-static BUTTON_CACHE: Lazy<std::sync::Mutex<Option<Vec<usize>>>> = Lazy::new(|| std::sync::Mutex::new(None));
+#[rebo::function("Tas::activate_all_buttons")]
+fn activate_buttons_rebo() {
+    set_all_buttons_enabled(true);
+}
 
-#[rebo::function("Tas::archipelago_gather_all_buttons")]
-fn archipelago_gather_all_buttons() {
-    log!("Archipelago: gathering all buttons");
+#[rebo::function("Tas::deactivate_all_buttons")]
+fn deactivate_buttons_rebo() {
+    set_all_buttons_enabled(false);
+}
 
-    // If already gathered, do nothing.
-    {
-        let lock = BUTTON_CACHE.lock().unwrap();
-        if lock.is_some() {
-            log!("Archipelago: button cache already filled ({} buttons)", lock.as_ref().unwrap().len());
-            return;
-        }
-    }
+#[rebo::function("Tas::set_button_enabled")]
+fn set_button_enabled_rebo(cluster_index: usize, button_index: usize, active: bool) {
+    set_button_enabled(cluster_index, button_index, active);
+}
 
-    let mut vec: Vec<usize> = Vec::new();
+fn set_all_buttons_enabled(active: bool) {
+    let levels = LEVELS.lock().unwrap();
     UeScope::with(|scope| {
-        for item in scope.iter_global_object_array() {
-            let object = item.object();
-            if object.is_null() {
-                continue;
-            }
-            let class_name = object.class().name();
-            let name = object.name();
-            if class_name == "BP_Button_C" && name != "Default__BP_Button_C" {
-                vec.push(object.as_ptr() as usize);
-            }
-        }
-    });
-
-    let mut cache_lock = BUTTON_CACHE.lock().unwrap();
-    *cache_lock = Some(vec);
-    log!("Archipelago: gathered {} buttons", cache_lock.as_ref().unwrap().len());
-}
-
-#[rebo::function("Tas::archipelago_activate_buttons_ap")]
-fn archipelago_activate_buttons_ap() {
-    archipelago_activate_buttons(-1);
-}
-#[rebo::function("Tas::archipelago_deactivate_buttons_ap")]
-fn archipelago_deactivate_buttons_ap() {
-    archipelago_deactivate_buttons(-1);
-}
-
-fn archipelago_activate_buttons(index: i32) {
-    // ensure cache is filled
-    {
-        let lock = BUTTON_CACHE.lock().unwrap();
-        if lock.is_none() {
-            panic!("BUTTON_CACHE not initialized; call Tas::archipelago_gather_all_buttons first");
-        }
-    }
-
-    log!("Archipelago: activating buttons (filter index={})", index);
-
-    let cached = {
-        let lock = BUTTON_CACHE.lock().unwrap();
-        lock.as_ref().map(|v| v.clone()).unwrap_or_default()
-    };
-
-    UeScope::with(|_scope| {
-        for ptr in cached {
-            let object = unsafe { ObjectWrapper::new(ptr as *mut UObject) };
-            if object.is_null() {
-                continue;
-            }
-            let name = object.name();
-            if index < 0 || name == format!("BP_Button_C_{}", index) {
-                object.get_field("IsPressed").unwrap::<BoolValueWrapper>().set(false);
-            }
-        }
-    });
-}
-fn archipelago_deactivate_buttons(index: i32) {
-    // ensure cache is filled
-    {
-        let lock = BUTTON_CACHE.lock().unwrap();
-        if lock.is_none() {
-            panic!("BUTTON_CACHE not initialized; call Tas::archipelago_gather_all_buttons first");
-        }
-    }
-
-    log!("Archipelago: deactivating buttons (filter index={})", index);
-
-    let cached = {
-        let lock = BUTTON_CACHE.lock().unwrap();
-        lock.as_ref().map(|v| v.clone()).unwrap_or_default()
-    };
-
-    UeScope::with(|_scope| {
-        for ptr in cached {
-            let object = unsafe { ObjectWrapper::new(ptr as *mut UObject) };
-            if object.is_null() {
-                continue;
-            }
-            let name = object.name();
-            if index < 0 || name == format!("BP_Button_C_{}", index) {
-                object.get_field("IsPressed").unwrap::<BoolValueWrapper>().set(true);
+        for level in levels.iter() {
+            for button_index in level.buttons.iter() {
+                scope.get(*button_index).set_enabled(active);
             }
         }
     });
 }
 
+fn set_button_enabled(cluster_index: usize, button_index: usize, active: bool) {
+    let levels = LEVELS.lock().unwrap();
+    UeScope::with(|scope| {
+        let button_index = levels[cluster_index].buttons[button_index];
+        scope.get(button_index).set_enabled(active);
+    })
+}
 
 #[rebo::function("Tas::archipelago_raise_cluster")]
-fn archipelago_raise_cluster_rebo(cluster_index: i32, last_unlocked: usize) {
-    archipelago_raise_cluster(cluster_index, last_unlocked);
+fn raise_cluster_rebo(cluster_index: i32) {
+    raise_cluster(cluster_index);
 }
 
-fn archipelago_raise_cluster(cluster_index: i32, last_unlocked: usize) {
-    set_level(cluster_index);
-    if last_unlocked == 6 {
-        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
-    }
-    if last_unlocked == 9 {
-        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
-    }
-    if last_unlocked == 17 {
-        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
-    }
-    if last_unlocked == 25 {
-        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
-        trigger_element_by_type(last_unlocked, "Button".to_string(), 2);
-    }
-    if last_unlocked == 27 {
-        trigger_element_by_type(last_unlocked, "Button".to_string(), 1);
-    }
-    trigger_element_by_type(last_unlocked, "Button".to_string(), 0);
+fn raise_cluster(cluster_index: i32) {
+    // set current level to the one before the level we want to trigger
+    LevelState::set_level(cluster_index - 1);
+    UMyGameInstance::raise_next_level();
 }
 
 
@@ -2157,11 +2059,11 @@ fn trigger_element(index: ElementIndex) {
 
 fn trigger_element_by_type(cluster_index: usize, element_type: String, element_index: usize) {
     if element_type == "Button" {
-        archipelago_activate_buttons(-1);
+        set_all_buttons_enabled(true);
     }
     trigger_element_by_type_details(cluster_index, element_type.clone(), element_index);
     if element_type == "Button" {
-        archipelago_deactivate_buttons(-1);
+        set_all_buttons_enabled(false);
     }
 }
 
@@ -2268,8 +2170,8 @@ fn abilities_set_ledge_grab(ledge_grab: bool) {
     }
 }
 
-#[rebo::function("Tas::archipelago_trigger_goal_animation")]
-fn archipelago_trigger_goal_animation() {
+#[rebo::function("Tas::trigger_goal_animation")]
+fn trigger_goal_animation() {
     log!("Archipelago: triggering goal animation");
     UeScope::with(|scope| {
         let levels = LEVELS.lock().unwrap();
