@@ -123,6 +123,10 @@ pub fn create_config(rebo_stream_tx: Sender<ReboToStream>) -> ReboConfig {
         .add_function(press_platform_on_server)
         .add_function(press_button_on_server)
 
+        .add_function(set_goal_animation_should_play)
+        .add_function(disable_all_buttons)
+        .add_function(enable_all_buttons)
+
         .add_function(archipelago_connect)
         .add_function(archipelago_disconnect)
         .add_function(archipelago_send_check)
@@ -538,8 +542,6 @@ static mut CURRENT_LEVEL: i32 = 28;
 
 #[rebo::function("Tas::test_stuff")]
 fn test_stuff() {
-    set_goal_animation_trigger_enabled(false);
-
     UeScope::with(|scope| {
         unsafe {
             LevelState::set_level(CURRENT_LEVEL);
@@ -552,10 +554,40 @@ fn test_stuff() {
         let first_button = scope.get(levels[0].buttons[0]);
         first_button.set_beacon_color(0.0, 1.0, 1.0);
         first_button.set_pressed(!first_button.is_pressed());
+        first_button.set_collision(!first_button.is_pressed());
     });
 }
 
-fn set_goal_animation_trigger_enabled(enabled: bool) {
+#[rebo::function("Tas::disable_all_buttons")]
+fn disable_all_buttons() {
+    let levels = LEVELS.lock().unwrap();
+    UeScope::with(|scope| {
+        for level in levels.iter() {
+            for button_index in level.buttons.iter() {
+                let button = scope.get(*button_index);
+                button.set_pressed(false);
+                button.set_collision(false);
+            }
+        }
+    });
+}
+
+#[rebo::function("Tas::enable_all_buttons")]
+fn enable_all_buttons() {
+    let levels = LEVELS.lock().unwrap();
+    UeScope::with(|scope| {
+        for level in levels.iter() {
+            for button_index in level.buttons.iter() {
+                let button = scope.get(*button_index);
+                button.set_pressed(true);
+                button.set_collision(true);
+            }
+        }
+    });
+}
+
+#[rebo::function("Tas::set_goal_animation_should_play")]
+fn set_goal_animation_should_play(enabled: bool) {
     // Enables/disables the endgame animation that is triggered by the final button
     UeScope::with(|scope| {
         let levels = LEVELS.lock().unwrap();
