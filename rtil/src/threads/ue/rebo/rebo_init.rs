@@ -509,12 +509,57 @@ fn interrupt_function<'i>(_vm: &mut VmContext<'i, '_, '_>) -> Result<(), ExecErr
 
 #[rebo::function("Tas::test_stuff")]
 fn test_stuff() {
+    check_objects()
+}
+
+fn check_objects() {
     UeScope::with(|scope| {
-        let levels = LEVELS.lock().unwrap();
-        let first_button = scope.get(levels[0].buttons[0]);
-        first_button.set_beacon_color(0.0, 1.0, 1.0);
-        first_button.set_pressed(!first_button.is_pressed());
-        first_button.set_collision(!first_button.is_pressed());
+        for item in scope.iter_global_object_array() {
+            fn print_children(depth: usize, class: ClassWrapper, max_depth: usize) {
+                if depth > max_depth { return; }
+                for property in class.iter_properties() {
+                    let class_name = property.class().name();
+
+                    if class_name == "ObjectProperty" {
+                        // Get the class that this property points to
+                        let obj_prop: ObjectPropertyWrapper = property.upcast();
+                        let target_class = obj_prop.property_class();
+                        let target_class_name = target_class.name();
+                        log!("{}{property} :: ({target_class_name})", "  ".repeat(depth));
+                        print_children(depth + 1, target_class, max_depth);
+                    } else if class_name == "StructProperty" {
+                        let struct_prop: StructPropertyWrapper = property.upcast();
+                        let struct_: StructWrapper = struct_prop.struct_();
+                        let struct_name = struct_.name();
+                        log!("{}{property} :: ({struct_name})", "  ".repeat(depth));
+                        print_children(depth + 1, struct_.class(), max_depth);
+                    } else {
+                        log!("{}{property} :: ({class_name})", "  ".repeat(depth));
+                    }
+                }
+
+                for function in class.iter_functions() {
+                    let function_name = function.name();
+                    let param_string = function.iter_params().map(|param| {
+                        let name = param.name();
+                        let class_name = param.class().name();
+                        format!("{name}: {class_name}")
+                    }).join(", ");
+                    log!("{}{function_name}({param_string})", "  ".repeat(depth));
+                }
+            }
+
+            let object = item.object();
+            let object_name = object.name();
+            let object_class = object.class();
+
+            // Remove this if-statement to print _all_ top-level objects! I would also recommend
+            // reducing the max_depth, otherwise it prints a _lot_ of information.
+            if matches!(object_name.as_str(), "BP_Outro_C_0") {
+                log!("{:?} ({:?})", object_name, object_class.name());
+                print_children(1, object_class, 3);
+            }
+        }
     });
 }
 
